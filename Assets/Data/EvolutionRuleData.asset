@@ -1,0 +1,195 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5965b8a0a627f0c4ba5836373aeedfc0, type: 3}
+  m_Name: EvolutionRuleData
+  m_EditorClassIdentifier: Assembly-CSharp::EvolutionRuleDataSO
+  rules:
+  - type: 1
+    variant: 0
+    evolvedName: "\u75BE\u98A8\u306E\u9A0E\u5175"
+    evolvedDescription: "\u99C6\u3051\u629C\u3051\u3056\u307E\u306B\u5F37\u6253\u3092\u53E9\u304D\u8FBC\u3080\u3001\u653B\u52E2\u7279\u5316\u306E\u30CA\u30A4\u30C8\u3002"
+    attackBonusMultiplier: 0.15
+    hpBonusMultiplier: 0
+    speedBonusRate: 0
+    lifestealBonusRate: 0
+    grantsExtraEquipSlot: 0
+  - type: 1
+    variant: 1
+    evolvedName: "\u9244\u8E44\u306E\u91CD\u9A0E\u5175"
+    evolvedDescription: "\u91CD\u88C5\u306E\u99AC\u93A7\u3092\u307E\u3068\u3044\u3001\u524D\u7DDA\u306B\u5C45\u5EA7\u308A\u7D9A\u3051\u308B\u9811\u4E08\u306A\u30CA\u30A4\u30C8\u3002"
+    attackBonusMultiplier: 0
+    hpBonusMultiplier: 0.15
+    speedBonusRate: 0
+    lifestealBonusRate: 0
+    grantsExtraEquipSlot: 0
+  - type: 1
+    variant: 2
+    evolvedName: "\u65CB\u98A8\u306E\u904A\u6483\u5175"
+    evolvedDescription: "\u76EE\u306B\u3082\u7559\u307E\u3089\u306C\u901F\u3055\u3067\u6226\u5834\u3092\u99C6\u3051\u56DE\u308B\u904A\u6483\u578B\u306E\u30CA\u30A4\u30C8\u3002"
+    attackBonusMultiplier: 0
+    hpBonusMultiplier: 0
+    speedBonusRate: 0.15
+    lifestealBonusRate: 0
+    grantsExtraEquipSlot: 0
+  - type: 1
+    variant: 3
+    evolvedName: "\u5438\u8840\u99AC"
+    evolvedDescription: "\u65AC\u308A\u3064\u3051\u308B\u305F\u3073\u306B\u6575\u306E\u751F\u547D\u529B\u3092\u55B0\u3089\u3044\u3001\u81EA\u3089\u3092\u7652\u3059\u546A\u308F\u308C\u305F\u30CA\u30A4\u30C8\u3002"
+    attackBonusMultiplier: 0
+    hpBonusMultiplier: 0
+    speedBonusRate: 0
+    lifestealBonusRate: 0.15
+    grantsExtraEquipSlot: 0
+  - type: 1
+    variant: 4
+    evolvedName: "\u767E\u6226\u306E\u904A\u6483\u968A"
+    evolvedDescription: "\u504F\u308A\u306A\u304F\u935B\u3048\u4E0A\u3052\u3089\u308C\u305F\u3001\u3042\u3089\u3086\u308B\u6226\u6CC1\u306B\u5BFE\u5FDC\u3067\u304D\u308B\u6B74\u6226\u306E\u30CA\u30A4\u30C8\u3002"
+    attackBonusMultiplier: 0.05
+    hpBonusMultiplier: 0.05
+    speedBonusRate: 0.05
+    lifestealBonusRate: 0.05
+    grantsExtraEquipSlot: 1
+  - type: 2
+    variant: 0
+    evolvedName: "\u7834\u57CE\u306E\u6226\u8ECA"
+    evolvedDescription: "\u57CE\u58C1\u3059\u3089\u6253\u3061\u7815\u304F\u4E00\u6483\u3092\u653E\u3064\u3001\u653B\u57CE\u7279\u5316\u306E\u30EB\u30FC\u30AF\u3002"
+    attackBonusMultiplier: 0.15
+    hpBonusMultiplier: 0
+    speedBonusRate: 0
+    lifestealBonusRate: 0
+    grantsExtraEquipSlot: 0
+  - type: 2
+    variant: 1
+    evolvedName: "\u4E0D\u843D\u306E\u8981\u585E\u6226\u8ECA"
+    evolvedDescription: "\u5206\u539A\u3044\u88C5\u7532\u3067\u524D\u7DDA\u3092\u652F\u3048\u7D9A\u3051\u308B\u3001\u8981\u585E\u3055\u306A\u304C\u3089\u306E\u30EB\u30FC\u30AF\u3002"
+    attackBonusMultiplier: 0
+    hpBonusMultiplier: 0.15
+    speedBonusRate: 0
+    lifestealBonusRate: 0
+    grantsExtraEquipSlot: 0
+  - type: 2
+    variant: 2
+    evolvedName: "\u75BE\u8D70\u6226\u8ECA"
+    evolvedDescription: "\u91CD\u91CF\u3092\u611F\u3058\u3055\u305B\u306C\u901F\u5EA6\u3067\u76F4\u7DDA\u3092\u5236\u5727\u3059\u308B\u3001\u5FEB\u901F\u578B\u306E\u30EB\u30FC\u30AF\u3002"
+    attackBonusMultiplier: 0
+    hpBonusMultiplier: 0
+    speedBonusRate: 0.15
+    lifestealBonusRate: 0
+    grantsExtraEquipSlot: 0
+  - type: 2
+    variant: 3
+    evolvedName: "\u55B0\u3089\u3046\u9244\u8F2A"
+    evolvedDescription: "\u8E0F\u307F\u6F70\u3057\u305F\u6575\u306E\u529B\u3092\u7CE7\u306B\u3001\u81EA\u3089\u306E\u88C5\u7532\u3092\u518D\u751F\u3055\u305B\u308B\u9244\u8F2A\u306E\u30EB\u30FC\u30AF\u3002"
+    attackBonusMultiplier: 0
+    hpBonusMultiplier: 0
+    speedBonusRate: 0
+    lifestealBonusRate: 0.15
+    grantsExtraEquipSlot: 0
+  - type: 2
+    variant: 4
+    evolvedName: "\u4E07\u80FD\u6226\u8ECA"
+    evolvedDescription: "\u653B\u5B88\u901F\u306E\u3044\u305A\u308C\u306B\u3082\u79C0\u3067\u305F\u3001\u9699\u306E\u306A\u3044\u4E07\u80FD\u578B\u306E\u30EB\u30FC\u30AF\u3002"
+    attackBonusMultiplier: 0.05
+    hpBonusMultiplier: 0.05
+    speedBonusRate: 0.05
+    lifestealBonusRate: 0.05
+    grantsExtraEquipSlot: 1
+  - type: 3
+    variant: 0
+    evolvedName: "\u7834\u6212\u306E\u6CD5\u8C61"
+    evolvedDescription: "\u6148\u60B2\u3092\u6368\u3066\u3001\u8056\u306A\u308B\u6012\u308A\u306E\u5F3E\u3092\u6483\u3061\u653E\u3064\u653B\u6027\u306E\u30D3\u30B7\u30E7\u30C3\u30D7\u3002"
+    attackBonusMultiplier: 0.15
+    hpBonusMultiplier: 0
+    speedBonusRate: 0
+    lifestealBonusRate: 0
+    grantsExtraEquipSlot: 0
+  - type: 3
+    variant: 1
+    evolvedName: "\u4E0D\u52D5\u306E\u8056\u58C1"
+    evolvedDescription: "\u5982\u4F55\u306A\u308B\u731B\u653B\u306B\u3082\u63FA\u308B\u304C\u306A\u3044\u3001\u5B88\u8B77\u306B\u5FB9\u3057\u305F\u30D3\u30B7\u30E7\u30C3\u30D7\u3002"
+    attackBonusMultiplier: 0
+    hpBonusMultiplier: 0.15
+    speedBonusRate: 0
+    lifestealBonusRate: 0
+    grantsExtraEquipSlot: 0
+  - type: 3
+    variant: 2
+    evolvedName: "\u75BE\u99C6\u306E\u5DE1\u793C\u8C61"
+    evolvedDescription: "\u8EFD\u3084\u304B\u306A\u8DB3\u53D6\u308A\u3067\u6226\u7DDA\u3092\u6E21\u308A\u6B69\u304D\u3001\u6B21\u3005\u3068\u52A0\u8B77\u3092\u6388\u3051\u308B\u30D3\u30B7\u30E7\u30C3\u30D7\u3002"
+    attackBonusMultiplier: 0
+    hpBonusMultiplier: 0
+    speedBonusRate: 0.15
+    lifestealBonusRate: 0
+    grantsExtraEquipSlot: 0
+  - type: 3
+    variant: 3
+    evolvedName: "\u751F\u547D\u306E\u6CC9\u306E\u8C61\u4F7F\u3044"
+    evolvedDescription: "\u6575\u306E\u751F\u547D\u529B\u3092\u5438\u3044\u4E0A\u3052\u3001\u7652\u3057\u306E\u5947\u8DE1\u3078\u3068\u5909\u3048\u308B\u8C61\u4F7F\u3044\u3002"
+    attackBonusMultiplier: 0
+    hpBonusMultiplier: 0
+    speedBonusRate: 0
+    lifestealBonusRate: 0.15
+    grantsExtraEquipSlot: 0
+  - type: 3
+    variant: 4
+    evolvedName: "\u8CE2\u8005\u306E\u767D\u8C61"
+    evolvedDescription: "\u653B\u6483\u30FB\u56DE\u5FA9\u30FB\u9632\u5FA1\u306E\u3059\u3079\u3066\u306B\u901A\u3058\u305F\u3001\u8CE2\u8005\u306E\u57DF\u306B\u9054\u3057\u305F\u30D3\u30B7\u30E7\u30C3\u30D7\u3002"
+    attackBonusMultiplier: 0.05
+    hpBonusMultiplier: 0.05
+    speedBonusRate: 0.05
+    lifestealBonusRate: 0.05
+    grantsExtraEquipSlot: 1
+  - type: 4
+    variant: 0
+    evolvedName: "\u7D05\u84EE\u306E\u8ECD\u5E2B"
+    evolvedDescription: "\u6226\u5834\u3092\u713C\u304D\u5C3D\u304F\u3059\u9B54\u5F3E\u3092\u64CD\u308B\u3001\u653B\u52E2\u306B\u5FB9\u3057\u305F\u8ECD\u5E2B\u3002"
+    attackBonusMultiplier: 0.15
+    hpBonusMultiplier: 0
+    speedBonusRate: 0
+    lifestealBonusRate: 0
+    grantsExtraEquipSlot: 0
+  - type: 4
+    variant: 1
+    evolvedName: "\u738B\u306E\u76FE\u3068\u306A\u308B\u53C2\u8B00"
+    evolvedDescription: "\u81EA\u3089\u306E\u8EAB\u3092\u76FE\u306B\u3001\u3042\u3089\u3086\u308B\u731B\u653B\u304B\u3089\u9663\u3092\u5B88\u308A\u629C\u304F\u53C2\u8B00\u3002"
+    attackBonusMultiplier: 0
+    hpBonusMultiplier: 0.15
+    speedBonusRate: 0
+    lifestealBonusRate: 0
+    grantsExtraEquipSlot: 0
+  - type: 4
+    variant: 2
+    evolvedName: "\u75BE\u98A8\u306E\u53C2\u8B00"
+    evolvedDescription: "\u6226\u6CC1\u306E\u5909\u5316\u3092\u8AAD\u307F\u5207\u308A\u3001\u8AB0\u3088\u308A\u3082\u65E9\u304F\u9B54\u5F3E\u3092\u6483\u3061\u8FBC\u3080\u53C2\u8B00\u3002"
+    attackBonusMultiplier: 0
+    hpBonusMultiplier: 0
+    speedBonusRate: 0.15
+    lifestealBonusRate: 0
+    grantsExtraEquipSlot: 0
+  - type: 4
+    variant: 3
+    evolvedName: "\u9B42\u55B0\u3089\u3044\u306E\u9B54\u5973"
+    evolvedDescription: "\u6483\u3061\u629C\u3044\u305F\u6575\u306E\u9B42\u3092\u7CE7\u3068\u3057\u3001\u81EA\u3089\u306E\u529B\u3078\u3068\u5909\u63DB\u3059\u308B\u7981\u65AD\u306E\u53C2\u8B00\u3002"
+    attackBonusMultiplier: 0
+    hpBonusMultiplier: 0
+    speedBonusRate: 0
+    lifestealBonusRate: 0.15
+    grantsExtraEquipSlot: 0
+  - type: 4
+    variant: 4
+    evolvedName: "\u5168\u77E5\u306E\u5927\u53C2\u8B00"
+    evolvedDescription: "\u653B\u6483\u30FB\u8010\u4E45\u30FB\u901F\u5EA6\u30FB\u751F\u547D\u529B\u3001\u3059\u3079\u3066\u306E\u624D\u3092\u517C\u306D\u5099\u3048\u305F\u738B\u56FD\u968F\u4E00\u306E\u5927\u53C2\u8B00\u3002"
+    attackBonusMultiplier: 0.05
+    hpBonusMultiplier: 0.05
+    speedBonusRate: 0.05
+    lifestealBonusRate: 0.05
+    grantsExtraEquipSlot: 1

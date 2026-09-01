@@ -1,0 +1,156 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e1d959678c7edb4abdbcce88b163325, type: 3}
+  m_Name: EnemyWaveData
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyWaveDataSO
+  waves:
+  - waveNumber: 1
+    spawns:
+    - type: 0
+      gridX: 2
+      gridZ: 5
+    - type: 0
+      gridX: 5
+      gridZ: 5
+    aiBehavior: {fileID: 11400000, guid: 77aa13fa23f0b144b9756962da836dbc, type: 2}
+  - waveNumber: 2
+    spawns:
+    - type: 0
+      gridX: 2
+      gridZ: 5
+    - type: 0
+      gridX: 5
+      gridZ: 5
+    - type: 0
+      gridX: 5
+      gridZ: 5
+    aiBehavior: {fileID: 11400000, guid: f36df63746df7e14eaa90d9d9531db8b, type: 2}
+  - waveNumber: 3
+    spawns:
+    - type: 0
+      gridX: 1
+      gridZ: 5
+    - type: 0
+      gridX: 6
+      gridZ: 5
+    - type: 1
+      gridX: 3
+      gridZ: 6
+    - type: 3
+      gridX: 5
+      gridZ: 6
+    aiBehavior: {fileID: 11400000, guid: 5c1cb07595dfaf84ba5be1ca279460e0, type: 2}
+  - waveNumber: 4
+    spawns:
+    - type: 2
+      gridX: 2
+      gridZ: 6
+    - type: 4
+      gridX: 4
+      gridZ: 6
+    - type: 1
+      gridX: 5
+      gridZ: 5
+    - type: 0
+      gridX: 3
+      gridZ: 4
+    aiBehavior: {fileID: 11400000, guid: 77aa13fa23f0b144b9756962da836dbc, type: 2}
+  - waveNumber: 5
+    spawns:
+    - type: 2
+      gridX: 2
+      gridZ: 6
+    - type: 4
+      gridX: 4
+      gridZ: 6
+    - type: 1
+      gridX: 5
+      gridZ: 5
+    - type: 0
+      gridX: 3
+      gridZ: 4
+    aiBehavior: {fileID: 11400000, guid: f36df63746df7e14eaa90d9d9531db8b, type: 2}
+  - waveNumber: 6
+    spawns:
+    - type: 2
+      gridX: 2
+      gridZ: 6
+    - type: 4
+      gridX: 4
+      gridZ: 6
+    - type: 1
+      gridX: 5
+      gridZ: 5
+    - type: 0
+      gridX: 3
+      gridZ: 4
+    aiBehavior: {fileID: 11400000, guid: 5c1cb07595dfaf84ba5be1ca279460e0, type: 2}
+  - waveNumber: 7
+    spawns:
+    - type: 2
+      gridX: 2
+      gridZ: 6
+    - type: 4
+      gridX: 4
+      gridZ: 6
+    - type: 1
+      gridX: 5
+      gridZ: 5
+    - type: 0
+      gridX: 3
+      gridZ: 4
+    aiBehavior: {fileID: 11400000, guid: 77aa13fa23f0b144b9756962da836dbc, type: 2}
+  - waveNumber: 8
+    spawns:
+    - type: 2
+      gridX: 2
+      gridZ: 6
+    - type: 4
+      gridX: 4
+      gridZ: 6
+    - type: 1
+      gridX: 5
+      gridZ: 5
+    - type: 0
+      gridX: 3
+      gridZ: 4
+    aiBehavior: {fileID: 11400000, guid: f36df63746df7e14eaa90d9d9531db8b, type: 2}
+  - waveNumber: 9
+    spawns:
+    - type: 2
+      gridX: 2
+      gridZ: 6
+    - type: 4
+      gridX: 4
+      gridZ: 6
+    - type: 1
+      gridX: 5
+      gridZ: 5
+    - type: 0
+      gridX: 3
+      gridZ: 4
+    aiBehavior: {fileID: 11400000, guid: 5c1cb07595dfaf84ba5be1ca279460e0, type: 2}
+  - waveNumber: 10
+    spawns:
+    - type: 2
+      gridX: 2
+      gridZ: 6
+    - type: 4
+      gridX: 4
+      gridZ: 6
+    - type: 1
+      gridX: 5
+      gridZ: 5
+    - type: 0
+      gridX: 3
+      gridZ: 4
+    aiBehavior: {fileID: 11400000, guid: 77aa13fa23f0b144b9756962da836dbc, type: 2}

@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e5b1328e95f588a4c9c1c3025b4cf56c, type: 3}
+  m_Name: GameConfig
+  m_EditorClassIdentifier: Assembly-CSharp::GameConfigSO
+  initialGold: 10000
+  initialPlayerHp: 300
+  healCost: 2000
+  rerollCost: 200
+  maxInventorySlots: 8
+  benchSlotCount: 8
+  benchGapFromBoard: 1
+  boardWidth: 8
+  boardDepth: 8
+  playerFrontRowDepth: 2
+  enemyBackRowDepth: 2
+  skillAuraAttackPerLevel: 50
+  skillEconomyGoldPerLevel: 200
+  skillBarrierHpPerLevel: 300
+  waveBaseGoldReward: 100
+  goldPerEnemyKill: 0
+  sellValueCommon: 100
+  sellValueRare: 200
+  sellValueEpic: 400
+  sellValueLegendary: 700
+  debugGoldGrantAmount: 10
+  playerNearDeathSurviveChance: 0.7
+  endlessStartWave: 11
+  endlessScalingRate: 1.18
+  scorePerWave: 1000
+  scorePerKill: 100
+  scorePerGold: 10
+  scorePerHp: 5
+  waveChoiceOptions:
+  - label: "\u5F31\u6575"
+    enemyStatMultiplier: 0.8
+    goldReward: 100
+    dropRateMultiplier: 25
+  - label: "\u4E2D\u6575"
+    enemyStatMultiplier: 1
+    goldReward: 250
+    dropRateMultiplier: 50
+  - label: "\u5F37\u6575"
+    enemyStatMultiplier: 1.3
+    goldReward: 1000
+    dropRateMultiplier: 75
+  playerSelectableAIBehaviors:
+  - {fileID: 11400000, guid: 77aa13fa23f0b144b9756962da836dbc, type: 2}
+  - {fileID: 11400000, guid: f36df63746df7e14eaa90d9d9531db8b, type: 2}
+  - {fileID: 11400000, guid: 5c1cb07595dfaf84ba5be1ca279460e0, type: 2}
