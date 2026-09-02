@@ -207,7 +207,8 @@ public class UIManager : MonoBehaviour
       int cost = gm.UI_GetShopItemCost(i);
 
       // ステップ27【要件1】: エンドレスモード中も購入・リロールを解禁。所持Goldのみで可否を判定する
-      bool buyable = gold >= cost;
+      // 課題【フェーズ2: 操作ブロック】: 成長ボーナス選択中・合成/融合の手動選択中は購入不可にする
+      bool buyable = gold >= cost && !gm.UI_IsBlockingModalOpen();
 
       shopButtons[i].interactable = buyable;
 
@@ -335,6 +336,14 @@ public class UIManager : MonoBehaviour
     {
       UpdateShop(gm.isEndlessMode, gm.gold);
       UpdateBench();
+
+      // 課題【フェーズ2: 操作ブロック】: 成長ボーナス選択中・合成/融合の手動選択中はリロール/戦闘開始を禁止する。
+      // 【手動修正反映】rerollButtonはUpdateShop()内で先に「gold >= 200」で設定されているため、
+      // ここで単純に!UI_IsBlockingModalOpen()だけを代入すると、そのGold条件が上書きされてしまい、
+      // 「Gold不足でもモーダル非表示時なら押せてしまう」不具合が発生していた。
+      // Gold条件とブロック判定の両方を必ず満たすAND条件として合成する。
+      if (rerollButton != null) rerollButton.interactable = gm.gold >= 200 && !gm.UI_IsBlockingModalOpen();
+      if (startBattleButton != null) startBattleButton.interactable = !gm.UI_IsBlockingModalOpen();
     }
 
     // ステップ21: 機能無効時はDebugGameManager側の状態に関わらず常に閉じたままにする（誤表示防止の二重ガード）

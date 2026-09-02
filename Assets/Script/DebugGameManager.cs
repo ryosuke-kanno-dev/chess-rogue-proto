@@ -1694,6 +1694,10 @@ public class DebugGameManager : MonoBehaviour
   // 同種合成/★3進化の選択開始（MergeButtonUIから呼ばれる）
   public void UI_StartMergeSelection(PieceType type, int fromRank)
   {
+    // 課題【フェーズ2: 操作ブロック】: 既に選択モード中、または成長ボーナス選択中の場合は、
+    // 二重に選択モードへ入って選択状態が上書きされる事故を防ぐため何もしない
+    if (isSelectionModeActive || showGrowthModal) return;
+
     isSelectionModeActive = true;
     selectionFromRank = fromRank;
     selectionFusionRecipeIndex = -1;
@@ -1708,6 +1712,10 @@ public class DebugGameManager : MonoBehaviour
   // 異種融合の選択開始（FusionButtonUIから呼ばれる）
   public void UI_StartFusionSelection(int recipeIndex)
   {
+    // 課題【フェーズ2: 操作ブロック】: 既に選択モード中、または成長ボーナス選択中の場合は、
+    // 二重に選択モードへ入って選択状態が上書きされる事故を防ぐため何もしない
+    if (isSelectionModeActive || showGrowthModal) return;
+
     if (fusionRecipeData == null || recipeIndex < 0 || recipeIndex >= fusionRecipeData.recipes.Count) return;
     var recipe = fusionRecipeData.recipes[recipeIndex];
 
@@ -2428,9 +2436,44 @@ public class DebugGameManager : MonoBehaviour
   // 内部の実装（private メソッド/フィールド）は変更せず、外部公開用の薄いラッパーとして提供する。
   // =====================================================================
 
-  public void UI_StartBattle() => StartBattle();
-  public void UI_BuyPiece(int index) => BuyPiece(index);
-  public void UI_RerollShop() => RerollShop(true);
+  public void UI_StartBattle()
+  {
+    // 課題【フェーズ2: 操作ブロック】: 成長ボーナス選択中・合成/融合の手動選択中は戦闘を開始できない
+    if (UI_IsBlockingModalOpen())
+    {
+      Debug.LogWarning("⚠️ 進化ボーナス選択中/合成選択中は戦闘を開始できません。");
+      return;
+    }
+    StartBattle();
+  }
+
+  public void UI_BuyPiece(int index)
+  {
+    // 課題【フェーズ2: 操作ブロック】: 成長ボーナス選択中・合成/融合の手動選択中はショップ購入できない
+    if (UI_IsBlockingModalOpen())
+    {
+      Debug.LogWarning("⚠️ 進化ボーナス選択中/合成選択中はショップ購入できません。");
+      return;
+    }
+    BuyPiece(index);
+  }
+
+  public void UI_RerollShop()
+  {
+    // 課題【フェーズ2: 操作ブロック】: 成長ボーナス選択中・合成/融合の手動選択中はリロールできない
+    if (UI_IsBlockingModalOpen())
+    {
+      Debug.LogWarning("⚠️ 進化ボーナス選択中/合成選択中はリロールできません。");
+      return;
+    }
+    RerollShop(true);
+  }
+
+  // 課題【フェーズ2: 操作ブロック】: 成長ボーナス選択中・合成/融合の手動選択中は、
+  // ショップ購入・リロール・戦闘開始・駒のドラッグ移動・別の合成/融合の開始を一切禁止する。
+  // 駒/アイテムの閲覧（PieceInspectPanelUI・ItemDetailPopup・ホバーツールチップ）はこの判定の対象外とし、常に許可する。
+  public bool UI_IsBlockingModalOpen() => showGrowthModal || isSelectionModeActive;
+
   public void UI_SetSpeed(int index) => SetSpeed(index);
   public void UI_ToggleSkip() => ToggleSkip();
   public void UI_ToggleSkillTree() => showSkillTreeModal = !showSkillTreeModal;

@@ -57,7 +57,9 @@ public class MergeButtonsUI : MonoBehaviour
   void RefreshSlots()
   {
     // 準備フェーズ以外、またはUGUIの成長モーダルが開いている間は合成ボタンを出さない
-    bool isPrepPhase = !gm.isBattleStarted && !gm.isGameOver && !gm.UI_IsGrowthModalOpen();
+    // 課題【フェーズ2: 操作ブロック】: 合成/融合の手動選択モード中は、別の合成/融合ボタン群を非表示にする
+    // （選択モード中に別の合成を開始してしまい、選択状態が上書きされる事故を防ぐため）
+    bool isPrepPhase = !gm.isBattleStarted && !gm.isGameOver && !gm.UI_IsGrowthModalOpen() && !gm.UI_IsSelectionModeActive();
 
     if (!isPrepPhase)
     {

@@ -57,7 +57,8 @@ public class FusionButtonsUI : MonoBehaviour
   void RefreshSlots()
   {
     // 課題【異種合成「精鋭騎兵」】: 表示条件はMergeButtonsUI.RefreshSlots()のisPrepPhase判定をそのまま踏襲する
-    bool isPrepPhase = !gm.isBattleStarted && !gm.isGameOver && !gm.UI_IsGrowthModalOpen();
+    // 課題【フェーズ2: 操作ブロック】: 合成/融合の手動選択モード中は、別の合成/融合ボタン群を非表示にする
+    bool isPrepPhase = !gm.isBattleStarted && !gm.isGameOver && !gm.UI_IsGrowthModalOpen() && !gm.UI_IsSelectionModeActive();
 
     if (!isPrepPhase)
     {

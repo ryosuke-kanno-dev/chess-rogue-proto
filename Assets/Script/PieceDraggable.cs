@@ -77,8 +77,10 @@ public class PieceDraggable : MonoBehaviour
       }
     }
 
-    // ドラッグ中の移動処理（※戦闘中はドラッグ移動禁止／課題4: 敵駒(プレイヤー非所有)も追従させない）
-    if (isDragging && Mouse.current.leftButton.isPressed && IsOwnedByLocalPlayer())
+    // ドラッグ中の移動処理（※戦闘中はドラッグ移動禁止／課題4: 敵駒(プレイヤー非所有)も追従させない／
+    // 課題【フェーズ2: 操作ブロック】: 成長ボーナス選択中・合成/融合の手動選択中もドラッグ移動を禁止する）
+    if (isDragging && Mouse.current.leftButton.isPressed && IsOwnedByLocalPlayer()
+        && (DebugGameManager.Instance == null || !DebugGameManager.Instance.UI_IsBlockingModalOpen()))
     {
       if (DebugGameManager.Instance != null && DebugGameManager.Instance.isBattleStarted)
       {
@@ -168,6 +170,9 @@ public class PieceDraggable : MonoBehaviour
     // 右クリックの判定：盤面ならベンチへ退避、ベンチなら削除
     if (Mouse.current.rightButton.wasPressedThisFrame)
     {
+      // 課題【フェーズ2: 操作ブロック】: 成長ボーナス選択中・合成/融合の手動選択中は右クリック操作を禁止する
+      if (DebugGameManager.Instance != null && DebugGameManager.Instance.UI_IsBlockingModalOpen()) return;
+
       // ステップ11: UGUIボタン等の上での右クリックも同様にガード
       if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
       {
