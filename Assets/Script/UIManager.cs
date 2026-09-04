@@ -33,6 +33,8 @@ public class UIManager : MonoBehaviour
   [SerializeField] private Button[] shopButtons;
   [SerializeField] private TextMeshProUGUI[] shopPriceTexts;
   [SerializeField] private Button rerollButton;
+  [Tooltip("リロールに必要なGoldを表示するテキスト（例:「200G」）")]
+  [SerializeField] private TextMeshProUGUI rerollCostText;
   [SerializeField] private Button startBattleButton;
   [SerializeField] private Transform benchContainer; // 子に8個のImage（ベンチ枠インジケーター）を並べておく
 
@@ -61,15 +63,35 @@ public class UIManager : MonoBehaviour
 
   void Awake()
   {
+    // 課題【自己参照バグの防止】: 本スクリプトはUIManager全体のUpdate()を担う中核コンポーネントのため、
+    // bottomPanel/cemeteryModal/skillTreeModal（いずれもSetActive(false)による非表示制御の対象）に
+    // 自分自身（このGameObject）が誤って割り当てられていないかを実行時に検出する。
+    // 万一自己参照のまま非表示化されると、UIManager自体のUpdate()が二度と呼ばれなくなり、
+    // 全てのUI更新が停止するという最も致命的なケースになるため、他のUIコンポーネントと同様にチェックする。
+    CheckSelfReference(bottomPanel, nameof(bottomPanel));
+    CheckSelfReference(cemeteryModal, nameof(cemeteryModal));
+    CheckSelfReference(skillTreeModal, nameof(skillTreeModal));
+
     Instance = this;
     CacheButtonLabels();
     RegisterButtonEvents();
     ApplyKingSkillFeatureToggle();
+
+    // 課題【初期化タイミングの堅牢化】: DebugGameManager.Instance自体への参照取得をAwake()へ早期化する
+    // （PullFromGameManager()等、DebugGameManagerが完全に初期化済みであることに依存する処理は
+    // 引き続きUpdate()側のnullチェック経由で安全に扱われる）。
+    gm = DebugGameManager.Instance;
   }
 
-  void Start()
+  // 課題【自己参照バグの防止】: 非表示制御用フィールドに自分自身が割り当てられていないかを確認する共通ヘルパー
+  void CheckSelfReference(GameObject field, string fieldName)
   {
-    gm = DebugGameManager.Instance;
+    if (field == gameObject)
+    {
+      Debug.LogError($"🚨 {GetType().Name}（{gameObject.name}）: {fieldName}に自分自身が" +
+        "割り当てられています。この状態で非表示化すると、二度と表示に戻れなくなります。" +
+        $"{fieldName}には、必ず「子オブジェクト」を割り当ててください。");
+    }
   }
 
   void Update()
@@ -343,6 +365,7 @@ public class UIManager : MonoBehaviour
       // 「Gold不足でもモーダル非表示時なら押せてしまう」不具合が発生していた。
       // Gold条件とブロック判定の両方を必ず満たすAND条件として合成する。
       if (rerollButton != null) rerollButton.interactable = gm.gold >= 200 && !gm.UI_IsBlockingModalOpen();
+      if (rerollCostText != null) rerollCostText.text = $"{gm.UI_GetRerollCost()}G";
       if (startBattleButton != null) startBattleButton.interactable = !gm.UI_IsBlockingModalOpen();
     }
 

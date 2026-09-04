@@ -1448,6 +1448,10 @@ public class DebugGameManager : MonoBehaviour
     }
 
     GenerateGrowthOptions();
+
+    // 課題【UIの排他制御】: 成長ボーナス選択（showGrowthModal）が開始されるタイミングで、
+    // 墓地/スキルツリー/AIパターン選択が開いていたら強制的に閉じる
+    CloseAllSidePanels();
     showGrowthModal = true;
   }
 
@@ -1698,6 +1702,10 @@ public class DebugGameManager : MonoBehaviour
     // 二重に選択モードへ入って選択状態が上書きされる事故を防ぐため何もしない
     if (isSelectionModeActive || showGrowthModal) return;
 
+    // 課題【UIの排他制御】: 選択モードが開始されるタイミングで、墓地/スキルツリー/AIパターン選択が
+    // 開いていたら強制的に閉じる
+    CloseAllSidePanels();
+
     isSelectionModeActive = true;
     selectionFromRank = fromRank;
     selectionFusionRecipeIndex = -1;
@@ -1718,6 +1726,10 @@ public class DebugGameManager : MonoBehaviour
 
     if (fusionRecipeData == null || recipeIndex < 0 || recipeIndex >= fusionRecipeData.recipes.Count) return;
     var recipe = fusionRecipeData.recipes[recipeIndex];
+
+    // 課題【UIの排他制御】: 選択モードが開始されるタイミングで、墓地/スキルツリー/AIパターン選択が
+    // 開いていたら強制的に閉じる
+    CloseAllSidePanels();
 
     isSelectionModeActive = true;
     selectionFromRank = 0;
@@ -2476,8 +2488,36 @@ public class DebugGameManager : MonoBehaviour
 
   public void UI_SetSpeed(int index) => SetSpeed(index);
   public void UI_ToggleSkip() => ToggleSkip();
-  public void UI_ToggleSkillTree() => showSkillTreeModal = !showSkillTreeModal;
-  public void UI_ToggleCemetery() => showCemeteryModal = !showCemeteryModal;
+
+  // 課題【UIの排他制御】: 墓地/スキルツリー/AIパターン選択の3つは、
+  // 同時に1つしか開けないようにする（新しく開く前に、必ず他を閉じる）
+  void CloseAllSidePanels()
+  {
+    showCemeteryModal = false;
+    showSkillTreeModal = false;
+    if (PieceAIBehaviorSelectorModal.Instance != null) PieceAIBehaviorSelectorModal.Instance.Hide();
+  }
+
+  // 外部（PieceInspectPanelUI）からAIパターン選択を開く前に、開いてよいか確認・他を閉じるための公開API
+  public bool UI_CanOpenSidePanel() => !UI_IsBlockingModalOpen();
+  public void UI_CloseAllSidePanels() => CloseAllSidePanels();
+
+  public void UI_ToggleSkillTree()
+  {
+    if (UI_IsBlockingModalOpen()) return;
+    bool opening = !showSkillTreeModal;
+    CloseAllSidePanels();
+    showSkillTreeModal = opening;
+  }
+
+  public void UI_ToggleCemetery()
+  {
+    if (UI_IsBlockingModalOpen()) return;
+    bool opening = !showCemeteryModal;
+    CloseAllSidePanels();
+    showCemeteryModal = opening;
+  }
+
   public void UI_ToggleDebugMenu() => showDebugMenu = !showDebugMenu;
 
   public bool UI_IsSkillTreeModalOpen() => showSkillTreeModal;

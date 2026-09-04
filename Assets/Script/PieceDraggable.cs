@@ -34,14 +34,19 @@ public class PieceDraggable : MonoBehaviour
 
     Vector2 mousePos = Mouse.current.position.ReadValue();
 
-    // 課題【合成/融合の手動選択モード】: 選択モード中は通常のドラッグ移動・右クリック操作を一切行わず、
-    // 左クリック（マウスダウン+アップ、移動距離が小さい単押し）だけを「選択のトグル」として扱う。
-    if (DebugGameManager.Instance != null && DebugGameManager.Instance.UI_IsSelectionModeActive())
-    {
-      HandleSelectionModeClick(mousePos);
-      return; // 既存のドラッグ/選択/右クリック処理は一切実行しない
-    }
+    bool selectionModeActive = DebugGameManager.Instance != null && DebugGameManager.Instance.UI_IsSelectionModeActive();
 
+    if (selectionModeActive)
+    {
+      // 課題【合成/融合の手動選択モード】: 選択モード中は通常のドラッグ移動を一切行わず、
+      // 左クリック（マウスダウン+アップ、移動距離が小さい単押し）だけを「選択のトグル」として扱う。
+      // 【重要】以前はここで早期returnしていたため、下部の右クリックブロックが選択モード中は
+      // 一切実行されなくなっていた。課題【選択モード中の詳細確認】で右クリック＝詳細確認を
+      // 追加するにあたり、if/else構造へ変更し、右クリックブロックは常に実行されるようにした。
+      HandleSelectionModeClick(mousePos);
+    }
+    else
+    {
     // マウス左ボタンを押した瞬間
     if (Mouse.current.leftButton.wasPressedThisFrame)
     {
@@ -78,7 +83,7 @@ public class PieceDraggable : MonoBehaviour
     }
 
     // ドラッグ中の移動処理（※戦闘中はドラッグ移動禁止／課題4: 敵駒(プレイヤー非所有)も追従させない／
-    // 課題【フェーズ2: 操作ブロック】: 成長ボーナス選択中・合成/融合の手動選択中もドラッグ移動を禁止する）
+    // 課題【フェーズ2: 操作ブロック】: 成長ボーナス選択中もドラッグ移動を禁止する）
     if (isDragging && Mouse.current.leftButton.isPressed && IsOwnedByLocalPlayer()
         && (DebugGameManager.Instance == null || !DebugGameManager.Instance.UI_IsBlockingModalOpen()))
     {
@@ -166,13 +171,11 @@ public class PieceDraggable : MonoBehaviour
         SnapToGrid();
       }
     }
+    }
 
     // 右クリックの判定：盤面ならベンチへ退避、ベンチなら削除
     if (Mouse.current.rightButton.wasPressedThisFrame)
     {
-      // 課題【フェーズ2: 操作ブロック】: 成長ボーナス選択中・合成/融合の手動選択中は右クリック操作を禁止する
-      if (DebugGameManager.Instance != null && DebugGameManager.Instance.UI_IsBlockingModalOpen()) return;
-
       // ステップ11: UGUIボタン等の上での右クリックも同様にガード
       if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
       {
@@ -180,16 +183,24 @@ public class PieceDraggable : MonoBehaviour
       }
 
       Ray ray = mainCamera.ScreenPointToRay(mousePos);
-      if (Physics.Raycast(ray, out RaycastHit hit))
+      if (Physics.Raycast(ray, out RaycastHit hit) && hit.transform == transform)
       {
-        if (hit.transform == transform)
+        // 課題【選択モード中の詳細確認】: 選択モード中は右クリックを「詳細確認」として扱う。
+        // 所有者を問わず（敵駒も含め）確認できる。左クリックの選択トグルには一切影響しない。
+        if (DebugGameManager.Instance != null && DebugGameManager.Instance.UI_IsSelectionModeActive())
         {
-          // 課題3【所有者チェック】: 右クリックによるベンチ退避・削除も、
-          // 自分の駒がプレイヤー所有（PlayerType.Player）の場合のみ許可する。
-          if (!IsOwnedByLocalPlayer()) return;
-
-          HandleRightClick();
+          DebugGameManager.Instance.SelectPiece(GetComponent<PieceData>());
+          return;
         }
+
+        // 課題【フェーズ2: 操作ブロック】: 成長ボーナス選択中はベンチ退避操作をブロックする（既存の判定はそのまま維持）
+        if (DebugGameManager.Instance != null && DebugGameManager.Instance.UI_IsBlockingModalOpen()) return;
+
+        // 課題3【所有者チェック】: 右クリックによるベンチ退避・削除も、
+        // 自分の駒がプレイヤー所有（PlayerType.Player）の場合のみ許可する。
+        if (!IsOwnedByLocalPlayer()) return;
+
+        HandleRightClick();
       }
     }
   }

@@ -10,6 +10,11 @@ using TMPro;
 // 同様の「hasOptionによる有効/無効切り替え」の書き方を踏襲している）。
 public class PieceAIBehaviorSelectorModal : MonoBehaviour
 {
+  // 課題【UIの排他制御】: 他のポップアップ（TooltipUI、ItemDetailPopup）と同じシングルトン参照パターンを踏襲し、
+  // 開閉状態（IsOpen）を外部（DebugGameManager等）から把握・操作できるようにする
+  public static PieceAIBehaviorSelectorModal Instance { get; private set; }
+  public bool IsOpen => panelRoot != null && panelRoot.activeSelf;
+
   [Header("パネル全体")]
   [Tooltip("このポップアップ表示中のみ表示するルート。未表示時は自動的にSetActive(false)になる")]
   [SerializeField] private GameObject panelRoot;
@@ -24,6 +29,20 @@ public class PieceAIBehaviorSelectorModal : MonoBehaviour
 
   // 課題【AIパターンのSO管理化】: Show()で渡された「今まさに設定しようとしている対象の駒」を保持する
   private PieceData targetPiece;
+
+  void Awake()
+  {
+    // 課題【自己参照バグの防止】: panelRootに自分自身が誤って割り当てられていないかを実行時に検出する。
+    if (panelRoot == gameObject)
+    {
+      Debug.LogError($"🚨 {GetType().Name}（{gameObject.name}）: panelRootに自分自身が" +
+        "割り当てられています。この状態でHide()すると、二度と表示に戻れなくなります。" +
+        "panelRootには、必ず「子オブジェクト」を割り当ててください。");
+    }
+
+    if (Instance == null) Instance = this;
+    else if (Instance != this) Destroy(gameObject);
+  }
 
   void Start()
   {

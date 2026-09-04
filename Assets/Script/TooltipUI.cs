@@ -37,6 +37,17 @@ public class TooltipUI : MonoBehaviour
 
   void Awake()
   {
+    // 課題【自己参照バグの防止】: panelRootに自分自身が誤って割り当てられていないかを実行時に検出する。
+    // 実際に過去、他のUIコンポーネント（PieceInspectPanel、MergeSelectionListPanel）でこの事故
+    // （panelRootへの自己参照）が発生し、非表示化と同時にUpdate()自体が呼ばれなくなる不具合につながったため、
+    // 全UIコンポーネントで統一的にチェックする。
+    if (panelRoot == gameObject)
+    {
+      Debug.LogError($"🚨 {GetType().Name}（{gameObject.name}）: panelRootに自分自身が" +
+        "割り当てられています。この状態でHide()すると、二度と表示に戻れなくなります。" +
+        "panelRootには、必ず「子オブジェクト」を割り当ててください。");
+    }
+
     if (Instance == null) Instance = this;
     else if (Instance != this) Destroy(gameObject);
 

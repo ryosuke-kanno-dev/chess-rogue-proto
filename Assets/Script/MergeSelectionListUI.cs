@@ -33,9 +33,25 @@ public class MergeSelectionListUI : MonoBehaviour
   private DebugGameManager gm;
   private readonly List<MergeSelectionRowUI> rows = new List<MergeSelectionRowUI>();
 
+  void Awake()
+  {
+    // 課題【自己参照バグの防止】: panelRootに自分自身が誤って割り当てられていないかを実行時に検出する。
+    // 実際に過去、本スクリプトでこの事故（panelRootへの自己参照）が発生し、非表示化と同時にUpdate()自体が
+    // 呼ばれなくなる不具合につながったため、特に注意して確認すること。
+    if (panelRoot == gameObject)
+    {
+      Debug.LogError($"🚨 {GetType().Name}（{gameObject.name}）: panelRootに自分自身が" +
+        "割り当てられています。この状態でHide()すると、二度と表示に戻れなくなります。" +
+        "panelRootには、必ず「子オブジェクト」を割り当ててください。");
+    }
+
+    // 課題【初期化タイミングの堅牢化】: DebugGameManager.Instance自体への参照取得をAwake()へ早期化する
+    // （BuildRows()等、DebugGameManagerが完全に初期化済みであることに依存する処理はStart()のまま残す）。
+    gm = DebugGameManager.Instance;
+  }
+
   void Start()
   {
-    gm = DebugGameManager.Instance;
     BuildRows();
 
     if (confirmButton != null) confirmButton.onClick.AddListener(OnConfirmClicked);

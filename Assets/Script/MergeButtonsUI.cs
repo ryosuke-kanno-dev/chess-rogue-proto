@@ -18,9 +18,17 @@ public class MergeButtonsUI : MonoBehaviour
   private DebugGameManager gm;
   private readonly List<MergeButtonUI> slots = new List<MergeButtonUI>();
 
+  void Awake()
+  {
+    // 課題【初期化タイミングの堅牢化】: DebugGameManager.Instance自体への参照取得をAwake()へ早期化する
+    // （BuildSlots()はgmに依存しないため元々Start()のままでよいが、参照取得だけ先に済ませておく）。
+    // 【自己参照バグ監査】本スクリプトはpanelRoot相当の非表示制御フィールドを持たないため、
+    // 自己参照チェックの対象外（各行のHide()は自分自身のgameObjectを対象にしており、それ自体は意図通りの設計）。
+    gm = DebugGameManager.Instance;
+  }
+
   void Start()
   {
-    gm = DebugGameManager.Instance;
     BuildSlots();
   }
 

@@ -51,10 +51,25 @@ public class PieceInspectPanelUI : MonoBehaviour
   private DebugGameManager gm;
   private readonly List<EquippedItemSlotUI> equippedSlots = new List<EquippedItemSlotUI>();
 
+  void Awake()
+  {
+    // 課題【自己参照バグの防止】: panelRootに自分自身が誤って割り当てられていないかを実行時に検出する。
+    // 実際に過去、本スクリプトでこの事故（panelRootへの自己参照）が発生し、非表示化と同時にUpdate()自体が
+    // 呼ばれなくなる不具合につながったため、特に注意して確認すること。
+    if (panelRoot == gameObject)
+    {
+      Debug.LogError($"🚨 {GetType().Name}（{gameObject.name}）: panelRootに自分自身が" +
+        "割り当てられています。この状態でHide()すると、二度と表示に戻れなくなります。" +
+        "panelRootには、必ず「子オブジェクト」を割り当ててください。");
+    }
+
+    // 課題【初期化タイミングの堅牢化】: DebugGameManager.Instance自体への参照取得をAwake()へ早期化する
+    // （BuildEquippedSlots()等、DebugGameManagerが完全に初期化済みであることに依存する処理はStart()のまま残す）。
+    gm = DebugGameManager.Instance;
+  }
+
   void Start()
   {
-    gm = DebugGameManager.Instance;
-
     BuildEquippedSlots();
 
     if (deselectButton != null)
@@ -281,7 +296,9 @@ public class PieceInspectPanelUI : MonoBehaviour
   {
     if (gm == null || gm.selectedPiece == null) return;
     if (aiBehaviorSelectorModal == null) return;
+    if (!gm.UI_CanOpenSidePanel()) return; // 課題【UIの排他制御】: ブロック中のモーダルがあれば開かない
 
+    gm.UI_CloseAllSidePanels(); // 課題【UIの排他制御】: 他（墓地/スキル）が開いていれば閉じる
     aiBehaviorSelectorModal.Show(gm.selectedPiece);
   }
 }

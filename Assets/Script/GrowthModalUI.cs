@@ -19,9 +19,26 @@ public class GrowthModalUI : MonoBehaviour
   private DebugGameManager gm;
   private GrowthCardUI[] cards;
 
+  void Awake()
+  {
+    // 課題【自己参照バグの防止】: panelRootに自分自身（このスクリプトがアタッチされているGameObject）が
+    // 誤って割り当てられていないかを実行時に検出する。自己参照のまま非表示化すると、このGameObject自体の
+    // Update()が二度と呼ばれなくなり、二度と復帰できなくなるため、致命的な設定ミスとしてConsole上に警告を出す。
+    if (panelRoot == gameObject)
+    {
+      Debug.LogError($"🚨 {GetType().Name}（{gameObject.name}）: panelRootに自分自身が" +
+        "割り当てられています。この状態でHide()すると、二度と表示に戻れなくなります。" +
+        "panelRootには、必ず「子オブジェクト」を割り当ててください。");
+    }
+
+    // 課題【初期化タイミングの堅牢化】: DebugGameManager.Instance自体への参照取得は、
+    // Start()より確実に早いAwake()へ移動する（BuildCards()等、DebugGameManagerが完全に
+    // 初期化済みであることに依存する処理はStart()のまま残す）。
+    gm = DebugGameManager.Instance;
+  }
+
   void Start()
   {
-    gm = DebugGameManager.Instance;
     BuildCards();
 
     if (panelRoot != null) panelRoot.SetActive(false);

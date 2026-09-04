@@ -30,9 +30,25 @@ public class InventoryUI : MonoBehaviour
   private DebugGameManager gm;
   private readonly List<InventorySlotUI> slots = new List<InventorySlotUI>();
 
+  void Awake()
+  {
+    // 課題【自己参照バグの防止】: contentRoot（panelRoot相当の非表示制御フィールド）に自分自身が
+    // 誤って割り当てられていないかを実行時に検出する。自己参照のまま非表示化すると、このGameObject自体の
+    // Update()が二度と呼ばれなくなり、二度と復帰できなくなるため、致命的な設定ミスとしてConsole上に警告を出す。
+    if (contentRoot == gameObject)
+    {
+      Debug.LogError($"🚨 {GetType().Name}（{gameObject.name}）: contentRootに自分自身が" +
+        "割り当てられています。この状態で非表示化すると、二度と表示に戻れなくなります。" +
+        "contentRootには、必ず「子オブジェクト」を割り当ててください。");
+    }
+
+    // 課題【初期化タイミングの堅牢化】: DebugGameManager.Instance自体への参照取得をAwake()へ早期化する
+    // （BuildSlots()はgmの完全な初期化に依存するため、引き続きStart()のまま残す）。
+    gm = DebugGameManager.Instance;
+  }
+
   void Start()
   {
-    gm = DebugGameManager.Instance;
     BuildSlots();
 
     if (toggleButton != null)

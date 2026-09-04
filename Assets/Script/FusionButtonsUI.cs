@@ -18,9 +18,16 @@ public class FusionButtonsUI : MonoBehaviour
   private DebugGameManager gm;
   private readonly List<FusionButtonUI> slots = new List<FusionButtonUI>();
 
+  void Awake()
+  {
+    // 課題【初期化タイミングの堅牢化】: DebugGameManager.Instance自体への参照取得をAwake()へ早期化する。
+    // 【自己参照バグ監査】本スクリプトはpanelRoot相当の非表示制御フィールドを持たないため、
+    // 自己参照チェックの対象外。
+    gm = DebugGameManager.Instance;
+  }
+
   void Start()
   {
-    gm = DebugGameManager.Instance;
     BuildSlots();
   }
 
