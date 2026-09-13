@@ -24,11 +24,33 @@ public class PieceHealthBar : MonoBehaviour
     UpdateHealthBar(); // 初期表示を更新
   }
 
+  // 課題【体力バー高さのSO管理化】: PieceModelDataSOに該当駒種のエントリがあれば
+  // その高さを使い、無ければ既存の固定値(1.2f)へフォールバックする
+  float GetHealthBarHeight()
+  {
+    if (targetPiece != null && DebugGameManager.Instance != null && DebugGameManager.Instance.PieceModelData != null)
+    {
+      var entry = DebugGameManager.Instance.PieceModelData.GetEntry(targetPiece.type);
+      if (entry != null) return entry.healthBarHeight;
+    }
+    return 1.2f;
+  }
+
+  float GetHealthBarTextHeight()
+  {
+    if (targetPiece != null && DebugGameManager.Instance != null && DebugGameManager.Instance.PieceModelData != null)
+    {
+      var entry = DebugGameManager.Instance.PieceModelData.GetEntry(targetPiece.type);
+      if (entry != null) return entry.healthBarTextHeight;
+    }
+    return 1.45f;
+  }
+
   void CreateHealthBarUI()
   {
     canvasObj = new GameObject("HPBar_Canvas");
     canvasObj.transform.SetParent(transform);
-    canvasObj.transform.localPosition = new Vector3(0, 1.2f, 0);
+    canvasObj.transform.localPosition = new Vector3(0, GetHealthBarHeight(), 0);
 
     Canvas canvas = canvasObj.AddComponent<Canvas>();
     canvas.renderMode = RenderMode.WorldSpace;
@@ -77,7 +99,7 @@ public class PieceHealthBar : MonoBehaviour
   {
     textCanvasObj = new GameObject("HP_Text_Canvas");
     textCanvasObj.transform.SetParent(transform);
-    textCanvasObj.transform.localPosition = new Vector3(0, 1.45f, 0);
+    textCanvasObj.transform.localPosition = new Vector3(0, GetHealthBarTextHeight(), 0);
 
     Canvas textCanvas = textCanvasObj.AddComponent<Canvas>();
     textCanvas.renderMode = RenderMode.WorldSpace;

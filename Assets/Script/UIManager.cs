@@ -21,6 +21,7 @@ public class UIManager : MonoBehaviour
   [SerializeField] private Button skipButton;
   [SerializeField] private Button cemeteryButton;
   [SerializeField] private Button skillButton;
+  [SerializeField] private Button settingsButton; // 既存のボタン群と同じ場所（例: TopPanel）に追加
 
   [Header("キングスキル機能（仕様変更により既定で無効）")]
   [Tooltip("falseの場合、キングスキルボタンは起動時に自動的に非表示になり、クリックしても何も起こりません。" +
@@ -133,9 +134,20 @@ public class UIManager : MonoBehaviour
     if (skipButton != null) skipButton.onClick.AddListener(OnSkipButtonClicked);
     if (cemeteryButton != null) cemeteryButton.onClick.AddListener(OnCemeteryButtonClicked);
     if (skillButton != null) skillButton.onClick.AddListener(OnSkillButtonClicked);
+    if (settingsButton != null) settingsButton.onClick.AddListener(OnSettingsButtonClicked);
     if (rerollButton != null) rerollButton.onClick.AddListener(OnRerollButtonClicked);
     if (startBattleButton != null) startBattleButton.onClick.AddListener(OnStartBattleClicked);
-    if (debugToggleButton != null) debugToggleButton.onClick.AddListener(OnDebugToggleClicked);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    if (debugToggleButton != null)
+    {
+      debugToggleButton.onClick.AddListener(OnDebugToggleClicked);
+    }
+#else
+    if (debugToggleButton != null)
+    {
+      debugToggleButton.gameObject.SetActive(false);
+    }
+#endif
 
     if (shopButtons != null)
     {
@@ -169,6 +181,7 @@ public class UIManager : MonoBehaviour
 
   void OnSkipButtonClicked() { if (gm != null) gm.UI_ToggleSkip(); }
   void OnCemeteryButtonClicked() { if (gm != null) gm.UI_ToggleCemetery(); }
+  void OnSettingsButtonClicked() { if (gm != null) gm.UI_ToggleSettings(); }
   void OnSkillButtonClicked()
   {
     if (!kingSkillFeatureEnabled) return; // ステップ21: 廃止済み機能のため何もしない（安全ガード）
@@ -176,7 +189,9 @@ public class UIManager : MonoBehaviour
   }
   void OnRerollButtonClicked() { if (gm != null) gm.UI_RerollShop(); }
   void OnStartBattleClicked() { if (gm != null) gm.UI_StartBattle(); }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
   void OnDebugToggleClicked() { if (gm != null) gm.UI_ToggleDebugMenu(); }
+#endif
   void OnShopButtonClicked(int index) { if (gm != null) gm.UI_BuyPiece(index); }
   void OnAuraUpgradeClicked() { if (gm != null) gm.UI_UpgradeAura(); }
   void OnEconomyUpgradeClicked() { if (gm != null) gm.UI_UpgradeEconomy(); }
@@ -384,9 +399,11 @@ public class UIManager : MonoBehaviour
       UpdateCemeteryContent(gm.cemeteryList);
     }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
     if (debugToggleButtonLabel != null)
     {
       debugToggleButtonLabel.text = gm.showDebugMenu ? "Debug ON (F1)" : "Debug OFF (F1)";
     }
+#endif
   }
 }

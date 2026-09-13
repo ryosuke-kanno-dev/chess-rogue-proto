@@ -124,9 +124,14 @@ public class DebugGameManager : MonoBehaviour
   [SerializeField] private EvolutionRuleDataSO evolutionRuleData;
   [Tooltip("異種合成（融合）のレシピデータ。未設定の場合はUI_GetFusionCandidatesが常に空リストを返す")]
   [SerializeField] private FusionRecipeDataSO fusionRecipeData;
+  [Tooltip("駒種ごとのCADモデルプレハブデータ。未設定または該当駒種のエントリが無い場合は、従来通りキューブ+color上書きのまま表示される")]
+  [SerializeField] private PieceModelDataSO pieceModelData;
 
   // PieceData.SetupInitialStats()から参照するための公開アクセサ
   public UnitStatusDataSO UnitStatusData => unitStatusData;
+
+  // 課題【体力バー高さのSO管理化】: PieceHealthBar側からrotationOffset等と同じエントリを参照するための公開アクセサ
+  public PieceModelDataSO PieceModelData => pieceModelData;
 
   // 課題【AIパターンのSO管理化】: 現在ウェーブのAIBehaviorDataSOをUI表示等から参照するための公開プロパティ。
   // enemyWaveData未設定、または該当ウェーブのエントリが無い、またはaiBehavior未設定の場合はnull（＝バランス型扱い）を返す。
@@ -173,6 +178,11 @@ public class DebugGameManager : MonoBehaviour
   private float endlessAnnounceTimer = 0f;
   private int finalScore = 0;
   private bool isNewHighScore = false;
+
+  // 課題【ゲームオーバー画面のUGUI化】: private扱いのfinalScore/isNewHighScoreをUI側（GameOverPanelUI）から
+  // 参照できるようにする公開ゲッター
+  public int UI_GetFinalScore() => finalScore;
+  public bool UI_IsNewHighScore() => isNewHighScore;
   private int ScorePerWave => gameConfig != null ? gameConfig.scorePerWave : 1000;
   private int ScorePerKill => gameConfig != null ? gameConfig.scorePerKill : 100;
   private int ScorePerGold => gameConfig != null ? gameConfig.scorePerGold : 10;
@@ -182,7 +192,9 @@ public class DebugGameManager : MonoBehaviour
   private float roundEndTimer = 0f;
 
   [Header("ステップ6: UI分離 & 倍速/スキップ")]
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
   public bool showDebugMenu = false;
+#endif
   private float[] speedOptions = new float[] { 1f, 2f, 4f };
   private int currentSpeedIndex = 0;
   private bool isSkipping = false;
@@ -512,7 +524,9 @@ public class DebugGameManager : MonoBehaviour
     // ステップ6: キー入力はUpdate()で1フレーム1回だけ判定する（OnGUIは1フレームに複数回呼ばれるため）
     if (Keyboard.current != null)
     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
       if (Keyboard.current.f1Key.wasPressedThisFrame) showDebugMenu = !showDebugMenu;
+#endif
       if (Keyboard.current.rKey.wasPressedThisFrame) ResetScene();
       if (Keyboard.current.spaceKey.wasPressedThisFrame && !isBattleStarted && !isGameOver) StartBattle();
     }
@@ -1199,17 +1213,20 @@ public class DebugGameManager : MonoBehaviour
     // ステップ23: 合成ボタン・強化選択モーダルはUGUI（MergeButtonsUI / GrowthModalUI）へ移行したため、
     // 旧OnGUI版のCheckAndDrawMergeButtons / DrawGrowthModalの呼び出しは削除しました。
 
-    // ステップ5: ゲームオーバー時のスコア画面
-    if (isGameOver) DrawGameOverPanel();
+    // 課題【ゲームオーバー画面のUGUI化】: ゲームオーバー画面はUGUI（GameOverPanelUI.cs）へ移行したため、
+    // 旧OnGUI版のDrawGameOverPanel呼び出しは削除しました。
 
     // ステップ6: デバッグ専用UI（F1キー or UGUIのDebugトグルボタンで表示切替）
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
     if (showDebugMenu) DrawDebugMenu();
+#endif
   }
 
   // ステップ11: メインHUD・ショップ・ベンチはUIManager（UGUI）へ移行したため、
   // 旧OnGUI版のDrawMainHud / DrawShopAndBenchUI / CountOccupiedBenchSlotsは削除しました。
 
   // ステップ6: デバッグ専用UI（開発者向けの手動操作。showDebugMenuで表示切替）
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
   void DrawDebugMenu()
   {
     GUI.backgroundColor = Color.cyan;
@@ -1248,6 +1265,7 @@ public class DebugGameManager : MonoBehaviour
       ScoreManager.ResetHighScore();
     }
   }
+#endif
 
   int CalculateFinalScore()
   {
@@ -1257,51 +1275,8 @@ public class DebugGameManager : MonoBehaviour
     return waveScore + killScore + bonusScore;
   }
 
-  void DrawGameOverPanel()
-  {
-    int width = 480;
-    int height = 320;
-    int startX = Screen.width / 2 - width / 2;
-    int startY = Screen.height / 2 - height / 2;
-
-    GUI.Box(new Rect(startX, startY, width, height), "");
-
-    GUIStyle titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 24, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-    titleStyle.normal.textColor = Color.red;
-    GUI.Label(new Rect(startX, startY + 15, width, 40), "GAME OVER", titleStyle);
-
-    GUIStyle infoStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter };
-    infoStyle.normal.textColor = Color.white;
-
-    string waveText = isEndlessMode ? $"🌊 到達ウェーブ: {currentWave} (ENDLESS)" : $"到達ウェーブ: {currentWave}";
-    GUI.Label(new Rect(startX, startY + 65, width, 26), waveText, infoStyle);
-    GUI.Label(new Rect(startX, startY + 91, width, 26), $"総撃破数: {totalEnemiesDefeated}", infoStyle);
-    GUI.Label(new Rect(startX, startY + 117, width, 26), $"最終ゴールド: {gold}   残HP: {playerHp}", infoStyle);
-
-    GUIStyle scoreStyle = new GUIStyle(GUI.skin.label) { fontSize = 28, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-    scoreStyle.normal.textColor = Color.yellow;
-    GUI.Label(new Rect(startX, startY + 152, width, 36), $"⭐ 最終スコア: {finalScore} pt", scoreStyle);
-
-    if (isNewHighScore)
-    {
-      GUIStyle recordStyle = new GUIStyle(GUI.skin.label) { fontSize = 20, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-      recordStyle.normal.textColor = new Color(1f, 0.4f, 0.8f);
-      GUI.Label(new Rect(startX, startY + 192, width, 28), "New Record!", recordStyle);
-    }
-    else
-    {
-      GUIStyle hsStyle = new GUIStyle(GUI.skin.label) { fontSize = 16, alignment = TextAnchor.MiddleCenter };
-      hsStyle.normal.textColor = Color.gray;
-      GUI.Label(new Rect(startX, startY + 192, width, 28),
-        $"🏆 ハイスコア: {ScoreManager.GetHighScore()} pt (Wave {ScoreManager.GetHighScoreWave()})", hsStyle);
-    }
-
-    GUI.backgroundColor = Color.cyan;
-    if (GUI.Button(new Rect(startX + width / 2 - 90, startY + height - 55, 180, 36), "🔄 再挑戦 (R)"))
-    {
-      ResetScene();
-    }
-  }
+  // 課題【ゲームオーバー画面のUGUI化】: ゲームオーバー画面はUGUI（GameOverPanelUI.cs）へ移行したため、
+  // 旧OnGUI版のDrawGameOverPanelは削除しました。
 
   // ステップ13: スキルツリー/墓地モーダルはUIManager（Editor上のCanvas Prefab + Inspector参照）へ移行したため、
   // 旧OnGUI版のDrawSkillTreeModal / DrawCemeteryModalは削除しました。
@@ -2423,6 +2398,14 @@ public class DebugGameManager : MonoBehaviour
     SceneManager.LoadScene(currentScene.name);
   }
 
+  // 課題【タイトル画面・シーン遷移】: Titleシーンへ遷移する。
+  // ResetScene()（同一シーンの再読み込み）とは別の遷移先を持つ、新規の遷移メソッド。
+  public void ReturnToTitle()
+  {
+    Time.timeScale = 1f; // ResetScene()と同様、倍速設定をリセットしてから遷移する
+    SceneManager.LoadScene("Title");
+  }
+
   // ステップ6: 早送り倍率の切り替え
   void SetSpeed(int index)
   {
@@ -2496,6 +2479,7 @@ public class DebugGameManager : MonoBehaviour
     showCemeteryModal = false;
     showSkillTreeModal = false;
     if (PieceAIBehaviorSelectorModal.Instance != null) PieceAIBehaviorSelectorModal.Instance.Hide();
+    if (SettingsPanelUI.Instance != null) SettingsPanelUI.Instance.Hide();
   }
 
   // 外部（PieceInspectPanelUI）からAIパターン選択を開く前に、開いてよいか確認・他を閉じるための公開API
@@ -2518,7 +2502,27 @@ public class DebugGameManager : MonoBehaviour
     showCemeteryModal = opening;
   }
 
+  // 課題【設定画面】: UI_ToggleCemetery/UI_ToggleSkillTreeと同じ考え方（開く前は他を閉じる・
+  // ブロック中は開けない）で設定画面の開閉を行う。既に開いている場合はブロック判定を経由せず、
+  // いつでも閉じられるようにする（設定画面は成長ボーナス選択中等でも「閉じる」操作自体は妨げない）。
+  public void UI_ToggleSettings()
+  {
+    if (SettingsPanelUI.Instance == null) return;
+
+    if (SettingsPanelUI.Instance.IsOpen)
+    {
+      SettingsPanelUI.Instance.Hide();
+      return;
+    }
+
+    if (UI_IsBlockingModalOpen()) return;
+    CloseAllSidePanels();
+    SettingsPanelUI.Instance.Show();
+  }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
   public void UI_ToggleDebugMenu() => showDebugMenu = !showDebugMenu;
+#endif
 
   public bool UI_IsSkillTreeModalOpen() => showSkillTreeModal;
   public bool UI_IsCemeteryModalOpen() => showCemeteryModal;
@@ -2604,6 +2608,50 @@ public class DebugGameManager : MonoBehaviour
     Renderer ren = cube.GetComponent<Renderer>();
     if (ren != null) ren.material.color = isEnemy ? new Color(0.5f, 0f, 0f) : new Color(0f, 0.8f, 0f);
 
+    // 課題【CADモデル対応】: PieceModelDataSOに該当駒種のモデルが登録されていれば、
+    // キューブの見た目を消してCADモデルを子オブジェクトとして追加する。
+    // 当たり判定（Collider）はキューブ本体にそのまま残すため、クリック/ホバー判定の
+    // 既存コード（hit.transform == transform 等）は一切変更不要。
+    PieceModelDataSO.PieceModelEntry kingModelEntry = pieceModelData != null ? pieceModelData.GetEntry(PieceType.King) : null;
+    GameObject kingModelPrefab = kingModelEntry != null ? kingModelEntry.modelPrefab : null;
+    if (kingModelPrefab != null)
+    {
+      if (ren != null) ren.enabled = false; // キューブ本体は当たり判定専用の透明な箱にする
+
+      GameObject modelInstance = Instantiate(kingModelPrefab, cube.transform);
+      modelInstance.name = "VisualModel"; // PieceData.Start()側がこの名前で参照先を探すため固定
+      // 課題【CADモデルの位置補正】: CADモデルの原点が底面にないケースに対応するため、
+      // positionOffsetを唯一の基準として明示的に適用する（Vector3.zero固定をやめる）
+      modelInstance.transform.localPosition = kingModelEntry.positionOffset;
+      // 課題【CADモデルの直立補正】: プレハブ自体のローカル回転をそのまま使うのではなく、
+      // PieceModelEntry.rotationOffsetを唯一の基準として明示的に適用する
+      // （以前はここでQuaternion.identityへ強制上書きしていたため、プレハブ側の回転補正が
+      // 一切反映されない不具合があった）。
+      modelInstance.transform.localRotation = Quaternion.Euler(kingModelEntry.rotationOffset);
+
+      // 課題【CADモデルのスケール調整】: scaleOffsetを適用する
+      modelInstance.transform.localScale = kingModelEntry.scaleOffset;
+
+      // 課題【CADモデル対応】: 敵/味方の識別用リング（モデル自体の色は変更しない）
+      GameObject ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+      ring.name = "TeamRing";
+      ring.transform.SetParent(cube.transform, false);
+      ring.transform.localPosition = new Vector3(0f, -0.45f, 0f); // 駒の足元付近（Editorで要微調整）
+      ring.transform.localScale = new Vector3(1.0f, 0.05f, 1.0f); // 薄く潰した円盤状
+
+      Collider ringCollider = ring.GetComponent<Collider>();
+      if (ringCollider != null) Destroy(ringCollider); // リングは当たり判定を持たせない（キューブ本体のみ）
+
+      Renderer ringRenderer = ring.GetComponent<Renderer>();
+      if (ringRenderer != null)
+      {
+        Color ringColor = isEnemy
+          ? (gameConfig != null ? gameConfig.enemyRingColor : new Color(1f, 0.3f, 0.3f))
+          : (gameConfig != null ? gameConfig.allyRingColor : new Color(0.3f, 0.6f, 1f));
+        ringRenderer.material.color = ringColor;
+      }
+    }
+
     PieceData data = cube.AddComponent<PieceData>();
     data.type = PieceType.King;
     data.isEnemy = isEnemy;
@@ -2626,6 +2674,50 @@ public class DebugGameManager : MonoBehaviour
 
     Renderer ren = cube.GetComponent<Renderer>();
     if (ren != null) ren.material.color = color;
+
+    // 課題【CADモデル対応】: PieceModelDataSOに該当駒種のモデルが登録されていれば、
+    // キューブの見た目を消してCADモデルを子オブジェクトとして追加する。
+    // 当たり判定（Collider）はキューブ本体にそのまま残すため、クリック/ホバー判定の
+    // 既存コード（hit.transform == transform 等）は一切変更不要。
+    PieceModelDataSO.PieceModelEntry modelEntry = pieceModelData != null ? pieceModelData.GetEntry(type) : null;
+    GameObject modelPrefab = modelEntry != null ? modelEntry.modelPrefab : null;
+    if (modelPrefab != null)
+    {
+      if (ren != null) ren.enabled = false; // キューブ本体は当たり判定専用の透明な箱にする
+
+      GameObject modelInstance = Instantiate(modelPrefab, cube.transform);
+      modelInstance.name = "VisualModel"; // PieceData.Start()側がこの名前で参照先を探すため固定
+      // 課題【CADモデルの位置補正】: CADモデルの原点が底面にないケースに対応するため、
+      // positionOffsetを唯一の基準として明示的に適用する（Vector3.zero固定をやめる）
+      modelInstance.transform.localPosition = modelEntry.positionOffset;
+      // 課題【CADモデルの直立補正】: プレハブ自体のローカル回転をそのまま使うのではなく、
+      // PieceModelEntry.rotationOffsetを唯一の基準として明示的に適用する
+      // （以前はここでQuaternion.identityへ強制上書きしていたため、プレハブ側の回転補正が
+      // 一切反映されない不具合があった）。
+      modelInstance.transform.localRotation = Quaternion.Euler(modelEntry.rotationOffset);
+
+      // 課題【CADモデルのスケール調整】: scaleOffsetを適用する
+      modelInstance.transform.localScale = modelEntry.scaleOffset;
+
+      // 課題【CADモデル対応】: 敵/味方の識別用リング（モデル自体の色は変更しない）
+      GameObject ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+      ring.name = "TeamRing";
+      ring.transform.SetParent(cube.transform, false);
+      ring.transform.localPosition = new Vector3(0f, -0.45f, 0f); // 駒の足元付近（Editorで要微調整）
+      ring.transform.localScale = new Vector3(1.0f, 0.05f, 1.0f); // 薄く潰した円盤状
+
+      Collider ringCollider = ring.GetComponent<Collider>();
+      if (ringCollider != null) Destroy(ringCollider); // リングは当たり判定を持たせない（キューブ本体のみ）
+
+      Renderer ringRenderer = ring.GetComponent<Renderer>();
+      if (ringRenderer != null)
+      {
+        Color ringColor = isEnemy
+          ? (gameConfig != null ? gameConfig.enemyRingColor : new Color(1f, 0.3f, 0.3f))
+          : (gameConfig != null ? gameConfig.allyRingColor : new Color(0.3f, 0.6f, 1f));
+        ringRenderer.material.color = ringColor;
+      }
+    }
 
     PieceData data = cube.AddComponent<PieceData>();
     data.type = type;

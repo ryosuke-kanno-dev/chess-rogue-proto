@@ -114,4 +114,10 @@ public class GameConfigSO : ScriptableObject
   [Header("課題4: プレイヤー駒に設定可能なAIパターン一覧")]
   [Tooltip("PieceAIBehaviorSelectorModalの選択肢として表示するAIBehaviorDataSOの一覧")]
   public AIBehaviorDataSO[] playerSelectableAIBehaviors;
+
+  [Header("課題【CADモデル対応】: チームカラーリング")]
+  [Tooltip("プレイヤー駒の足元に敷くリングの色（CADモデル自体の色は変更しない）")]
+  public Color allyRingColor = new Color(0.3f, 0.6f, 1f);
+  [Tooltip("敵駒の足元に敷くリングの色")]
+  public Color enemyRingColor = new Color(1f, 0.3f, 0.3f);
 }

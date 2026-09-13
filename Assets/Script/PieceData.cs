@@ -103,7 +103,12 @@ public class PieceData : MonoBehaviour
 
   void Start()
   {
-    meshRenderer = GetComponent<Renderer>();
+    // 課題【CADモデル対応】: 子オブジェクトに"VisualModel"（CADモデル）が存在すれば
+    // そちらのRendererを対象にし、無ければ従来通り自分自身（キューブ）を対象にする。
+    // これにより、FlashRed/FlashGreen/SetSelectionHighlight等、meshRendererを直接
+    // 書き換える既存の演出が、モデル差し替え後も正しく可視化される。
+    Transform modelChild = transform.Find("VisualModel");
+    meshRenderer = modelChild != null ? modelChild.GetComponent<Renderer>() : GetComponent<Renderer>();
     if (meshRenderer != null)
     {
       originalColor = meshRenderer.material.color;

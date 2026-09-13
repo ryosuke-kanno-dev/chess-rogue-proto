@@ -1,14 +1,9 @@
 fileFormatVersion: 2
-guid: 9fbcf86f4e4f7fe4e8ee4a5268296d0a
+guid: 8775db700f92fcc4a81fddad90e064ca
 ModelImporter:
   serializedVersion: 24501
   internalIDToNameTable: []
-  externalObjects:
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: M_Pawn
-    second: {fileID: 2100000, guid: f1afb81d97d76414aaf516de279f14c9, type: 2}
+  externalObjects: {}
   materials:
     materialImportMode: 2
     materialName: 0

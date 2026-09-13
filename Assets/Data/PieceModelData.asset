@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3cd451a6fbf70504c939cb2a6ef02fcd, type: 3}
+  m_Name: PieceModelData
+  m_EditorClassIdentifier: Assembly-CSharp::PieceModelDataSO
+  models:
+  - type: 0
+    modelPrefab: {fileID: 2349975590184600037, guid: 6b0f8918d329ad149a5c4fd153dfab37, type: 3}
+    rotationOffset: {x: -90, y: 90, z: 0}
+    positionOffset: {x: 0, y: -0.4, z: 0}
+    scaleOffset: {x: 0.5, y: 0.5, z: 0.5}
+    healthBarHeight: 2.3
+    healthBarTextHeight: 2.55
+  - type: 2
+    modelPrefab: {fileID: 3914447735878845235, guid: 73c49dce7a2448a4a9695bc8c037c9c7, type: 3}
+    rotationOffset: {x: -90, y: 90, z: 0}
+    positionOffset: {x: 0, y: -0.4, z: -2}
+    scaleOffset: {x: 0.5, y: 0.5, z: 0.5}
+    healthBarHeight: 2.5
+    healthBarTextHeight: 2.75
+  - type: 1
+    modelPrefab: {fileID: 474001556575975660, guid: 26e1d0a960ead5043b11418fdb39ce8b, type: 3}
+    rotationOffset: {x: -90, y: 90, z: 0}
+    positionOffset: {x: 0, y: -0.4, z: -4}
+    scaleOffset: {x: 0.5, y: 0.5, z: 0.5}
+    healthBarHeight: 2.6
+    healthBarTextHeight: 2.85
+  - type: 3
+    modelPrefab: {fileID: 525657384273326131, guid: c56ecc1e128e36444aa92ecc09761d1a, type: 3}
+    rotationOffset: {x: -90, y: 90, z: 0}
+    positionOffset: {x: 0, y: -0.4, z: -6}
+    scaleOffset: {x: 0.5, y: 0.5, z: 0.5}
+    healthBarHeight: 3
+    healthBarTextHeight: 3.25
+  - type: 4
+    modelPrefab: {fileID: 6992185272231280309, guid: 25ecbb163033daa4685cbe0f7257b53b, type: 3}
+    rotationOffset: {x: -90, y: 90, z: 0}
+    positionOffset: {x: 0, y: -0.4, z: -8}
+    scaleOffset: {x: 0.5, y: 0.5, z: 0.5}
+    healthBarHeight: 3.5
+    healthBarTextHeight: 3.75
+  - type: 6
+    modelPrefab: {fileID: 8048177166508372624, guid: ba03ce6cf46be0340b7bf0d50712ce11, type: 3}
+    rotationOffset: {x: -90, y: 90, z: 0}
+    positionOffset: {x: 0, y: -0.4, z: -10}
+    scaleOffset: {x: 0.5, y: 0.5, z: 0.5}
+    healthBarHeight: 3.7
+    healthBarTextHeight: 3.95
