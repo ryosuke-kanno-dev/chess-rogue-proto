@@ -467,6 +467,9 @@ public class PieceData : MonoBehaviour
     currentHp -= damage;
     if (currentHp < 0) currentHp = 0;
 
+    // 課題【サウンドシステム】: 被弾SEの再生
+    if (AudioManager.Instance != null) AudioManager.Instance.PlayDamageSE();
+
     if (healthBar != null)
     {
       healthBar.UpdateHealthBar();

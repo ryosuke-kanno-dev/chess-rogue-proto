@@ -62,6 +62,9 @@ public class PieceAI : MonoBehaviour
 
     target.TakeDamage(damage, isCritical);
 
+    // 課題【サウンドシステム】: 攻撃SEの再生
+    if (AudioManager.Instance != null) AudioManager.Instance.PlayAttackSE();
+
     if (myData.lifestealRate > 0f)
     {
       int healAmount = Mathf.RoundToInt(damage * myData.lifestealRate);
