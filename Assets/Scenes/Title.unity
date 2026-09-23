@@ -511,6 +511,14 @@ MonoBehaviour:
   seAttack: {fileID: 8300000, guid: db446e5b182672d4e9f416d52635b66b, type: 3}
   seDamage: {fileID: 8300000, guid: 121c0cbac72e3fe4db970a909bebdeda, type: 3}
   seUiClick: {fileID: 8300000, guid: 2eed2f5753d86d54a8eafb10a2978e04, type: 3}
+  seDeath: {fileID: 8300000, guid: 8f18a593c79de6d429bf49c702a0b2d3, type: 3}
+  seMerge: {fileID: 8300000, guid: f41c5bdd64c21014d89bd8000188b8f1, type: 3}
+  seEvolve: {fileID: 8300000, guid: 82d552cdb9efc3941a70fef218bd99eb, type: 3}
+  seFusion: {fileID: 8300000, guid: 830064e169489194dba752c7ef6bd4ab, type: 3}
+  bgmTitle: {fileID: 8300000, guid: 0f4f6afd4f1789d4cbb3d7714cee1552, type: 3}
+  bgmPrep: {fileID: 8300000, guid: dc95c227686943c469bfc8fc5627f74a, type: 3}
+  bgmBattle: {fileID: 8300000, guid: d18da36e8acef8a44a9cb77bf0588117, type: 3}
+  bgmGameOver: {fileID: 8300000, guid: 12c60e997f88b204eabdfab7c5f6f362, type: 3}
 --- !u!1 &303019056
 GameObject:
   m_ObjectHideFlags: 0

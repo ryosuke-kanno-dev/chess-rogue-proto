@@ -597,6 +597,9 @@ public class PieceData : MonoBehaviour
 
   IEnumerator DieRoutine()
   {
+    // 課題【撃破音+合成/進化/融合音】: 撃破SEの再生
+    if (AudioManager.Instance != null) AudioManager.Instance.PlayDeathSE();
+
     yield return new WaitForSeconds(0.2f);
     gameObject.SetActive(false);
   }

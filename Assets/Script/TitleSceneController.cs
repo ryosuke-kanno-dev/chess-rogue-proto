@@ -27,6 +27,9 @@ public class TitleSceneController : MonoBehaviour
         if (SettingsPanelUI.Instance != null) SettingsPanelUI.Instance.Show();
       });
     }
+
+    // 課題【サウンドシステム: BGM接続】: タイトル画面のBGMを再生する
+    if (AudioManager.Instance != null) AudioManager.Instance.PlayTitleBgm();
   }
 
   void OnStartClicked()

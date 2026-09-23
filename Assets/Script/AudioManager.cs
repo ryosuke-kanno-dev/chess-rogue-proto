@@ -20,6 +20,16 @@ public class AudioManager : MonoBehaviour
   [SerializeField] private AudioClip seAttack;
   [SerializeField] private AudioClip seDamage;
   [SerializeField] private AudioClip seUiClick;
+  [SerializeField] private AudioClip seDeath;
+  [SerializeField] private AudioClip seMerge;   // ★1→★2 合成
+  [SerializeField] private AudioClip seEvolve;  // ★2→★3 進化（育成履歴分岐）
+  [SerializeField] private AudioClip seFusion;  // 異種融合（精鋭騎兵等）
+
+  [Header("BGMクリップ（フリー素材を後からここに割り当てる想定）")]
+  [SerializeField] private AudioClip bgmTitle;
+  [SerializeField] private AudioClip bgmPrep;
+  [SerializeField] private AudioClip bgmBattle;
+  [SerializeField] private AudioClip bgmGameOver;
 
   void Awake()
   {
@@ -81,4 +91,15 @@ public class AudioManager : MonoBehaviour
   public void PlayAttackSE() => PlaySE(seAttack);
   public void PlayDamageSE() => PlaySE(seDamage);
   public void PlayUiClickSE() => PlaySE(seUiClick);
+  public void PlayDeathSE() => PlaySE(seDeath);
+  public void PlayMergeSE() => PlaySE(seMerge);
+  public void PlayEvolveSE() => PlaySE(seEvolve);
+  public void PlayFusionSE() => PlaySE(seFusion);
+
+  // 課題【サウンドシステム: BGM接続】: フェーズごとのBGMを名前で呼び出せる便利メソッド。
+  // ゲームオーバーBGMのみ、スコア確認中にループし続けると煩わしいためloop: falseにする。
+  public void PlayTitleBgm() => PlayBgm(bgmTitle);
+  public void PlayPrepBgm() => PlayBgm(bgmPrep);
+  public void PlayBattleBgm() => PlayBgm(bgmBattle);
+  public void PlayGameOverBgm() => PlayBgm(bgmGameOver, loop: false);
 }

@@ -162,7 +162,10 @@ public class DebugGameManager : MonoBehaviour
   public int skillAuraLevel = 0;      // 全体攻撃力バフ
   public int skillEconomyLevel = 0;   // ターン追加ゴールド
   public int skillBarrierLevel = 0;   // 戦闘開始時耐久加算
-  private bool showSkillTreeModal = false;
+  // 課題【神クラス分割 第1弾】: showSkillTreeModalはSidePanelController側へ完全に移設した
+  private SidePanelController sidePanelController;
+  // 課題【神クラス分割 第2弾】: 墓地記録・Goldでの駒回復はCemeteryManager側へ完全に移設した
+  private CemeteryManager cemeteryManager;
 
   [Header("ステップ4: ハクスラ装備システム")]
   public List<EquipmentInstance> inventory = new List<EquipmentInstance>();
@@ -201,8 +204,10 @@ public class DebugGameManager : MonoBehaviour
   private const float SkipTimeScale = 30f;
 
   [Header("ステップ7: 墓地システム")]
-  public List<CemeteryRecord> cemeteryList = new List<CemeteryRecord>();
-  private bool showCemeteryModal = false;
+  // 課題【神クラス分割 第2弾】: 実体はCemeteryManager.CemeteryListへ完全に移設。
+  // UIManager等、既存の外部参照（gm.cemeteryList.Count等）をそのまま動かし続けるための委譲プロパティ。
+  public List<CemeteryRecord> cemeteryList => cemeteryManager.CemeteryList;
+  // 課題【神クラス分割 第1弾】: showCemeteryModalはSidePanelController側へ完全に移設した
 
   // 手動合成 & 3択モーダル管理
   private bool showGrowthModal = false;
@@ -222,6 +227,9 @@ public class DebugGameManager : MonoBehaviour
   {
     if (Instance == null) Instance = this;
     else Destroy(gameObject);
+
+    sidePanelController = GetComponent<SidePanelController>();
+    cemeteryManager = GetComponent<CemeteryManager>();
   }
 
   private void Start()
@@ -248,6 +256,9 @@ public class DebugGameManager : MonoBehaviour
 
     CreateRangeIndicator();
     GenerateBuffTile();
+
+    // 課題【サウンドシステム: BGM接続】: MainGameシーンに入った直後は準備フェーズのため、準備BGMを再生する
+    if (AudioManager.Instance != null) AudioManager.Instance.PlayPrepBgm();
   }
 
   // ステップ15/16 → 今回改修: プレハブ方式でのチェス盤マス目生成。
@@ -777,6 +788,9 @@ public class DebugGameManager : MonoBehaviour
           isGameOver = true;
           gameResultText = endlessTotalWipeout ? "GAME OVER（戦力・資金ともに尽きました）" : "GAME OVER";
 
+          // 課題【サウンドシステム: BGM接続】: ゲームオーバー確定のタイミングでゲームオーバーBGMへ切り替える
+          if (AudioManager.Instance != null) AudioManager.Instance.PlayGameOverBgm();
+
           // ステップ6: スキップ中にゲームオーバーへ到達した場合、AdvanceToNextWaveが呼ばれず
           // タイムスケールが高速のまま残ってしまうため、ここで明示的に復元する
           if (isSkipping)
@@ -846,6 +860,10 @@ public class DebugGameManager : MonoBehaviour
     }
 
     isBattleStarted = false;
+
+    // 課題【サウンドシステム: BGM接続】: ウェーブクリア後、次の準備フェーズに戻るタイミングで準備BGMへ切り替える
+    if (AudioManager.Instance != null) AudioManager.Instance.PlayPrepBgm();
+
     isRoundEnding = false;
     gameResultText = "";
 
@@ -1074,7 +1092,7 @@ public class DebugGameManager : MonoBehaviour
 
           if (trueDeath)
           {
-            SendPieceToCemetery(p);
+            cemeteryManager.SendPieceToCemetery(p);
             Destroy(p.gameObject);
           }
           else
@@ -1116,82 +1134,12 @@ public class DebugGameManager : MonoBehaviour
     }
   }
 
-  [Tooltip("gameConfigが未設定の場合に使う、負傷した味方駒をGoldで全回復させる際のフォールバックコスト。\nUI側は必ずUI_GetHealCost()経由でこの値を参照すること（値の二重管理を防止するための単一の真実）")]
-  [SerializeField] private int healCostFallback = 2000;
-
-  private int HealCost => gameConfig != null ? gameConfig.healCost : healCostFallback;
-
-  public int UI_GetHealCost() => HealCost;
-
-  // ステップ29【要件2】/ステップ31【改善】: 負傷した味方駒をGoldで全回復させる。
-  // コストは引数で受け取らず、必ず上記のHealCostプロパティ（単一の真実）を参照する。
-  public bool HealPieceWithGold(PieceData piece)
-  {
-    if (piece == null) return false;
-    if (piece.isEnemy) return false;
-    if (piece.currentHp <= 0) return false; // 死亡済み（本当に消失した）駒は対象外
-    if (piece.currentHp >= piece.maxHp) return false; // 満タンなら不要
-
-    if (gold < HealCost)
-    {
-      Debug.LogWarning($"⚠️ Goldが足りません（必要: {HealCost}G / 所持: {gold}G）。");
-      return false;
-    }
-
-    AddGold(-HealCost, GoldSourceType.ManualHeal);
-    piece.Heal(piece.maxHp - piece.currentHp); // 既存のHeal()を再利用し、浮遊テキスト等の演出もそのまま活かす
-    return true;
-  }
+  // 課題【神クラス分割 第2弾】: 墓地記録・Goldでの駒回復はCemeteryManagerへ移設したため、
+  // 以下は全てcemeteryManagerへの委譲一行のみになっている（実装本体はCemeteryManager.cs参照）。
+  public int UI_GetHealCost() => cemeteryManager.GetHealCost();
 
   // UI（PieceInspectPanelUI等）からの呼び出し用エイリアス。既存の命名規則(UI_〜)との互換のために残す
-  public bool UI_HealPieceWithGold(PieceData piece) => HealPieceWithGold(piece);
-
-  // ステップ7: 戦死した味方駒を墓地リストへ記録し、装備を1つずつ50%抽選で回収 or ロスト
-  void SendPieceToCemetery(PieceData piece)
-  {
-    CemeteryRecord record = new CemeteryRecord
-    {
-      pieceName = piece.pieceName,
-      type = piece.type,
-      rank = piece.rank,
-      deathWave = currentWave
-    };
-
-    int recovered = 0;
-    int lost = 0;
-
-    if (piece.equippedItems.Count > 0)
-    {
-      List<EquipmentInstance> items = new List<EquipmentInstance>(piece.equippedItems);
-
-      foreach (var item in items)
-      {
-        bool isRecovered = Random.value < 0.5f;
-
-        if (isRecovered)
-        {
-          AddItemToInventory(item);
-          recovered++;
-        }
-        else
-        {
-          lost++;
-        }
-
-        // ステップ8: 墓地データに装備1個ごとの結末（名前・レアリティ・回収 or ロスト）を記録
-        record.equipmentLog.Add(new CemeteryEquipmentEntry
-        {
-          itemName = item.itemName,
-          rarity = item.rarity,
-          wasRecovered = isRecovered
-        });
-      }
-    }
-
-    cemeteryList.Add(record);
-
-    Debug.Log($"【墓地】{piece.pieceName} が戦死。装備 {recovered}個 回収 / {lost}個 ロスト。");
-  }
+  public bool UI_HealPieceWithGold(PieceData piece) => cemeteryManager.HealPieceWithGold(piece);
 
   private void OnGUI()
   {
@@ -1426,7 +1374,11 @@ public class DebugGameManager : MonoBehaviour
 
     // 課題【UIの排他制御】: 成長ボーナス選択（showGrowthModal）が開始されるタイミングで、
     // 墓地/スキルツリー/AIパターン選択が開いていたら強制的に閉じる
-    CloseAllSidePanels();
+    sidePanelController.CloseAllSidePanels();
+
+    // 課題【撃破音+合成/進化/融合音】: ★1→★2合成SEの再生
+    if (AudioManager.Instance != null) AudioManager.Instance.PlayMergeSE();
+
     showGrowthModal = true;
   }
 
@@ -1505,6 +1457,9 @@ public class DebugGameManager : MonoBehaviour
     string popupText = !string.IsNullOrEmpty(keepPiece.evolvedVariantName)
       ? $"{keepPiece.evolvedVariantName} に進化！"
       : $"★3 {keepPiece.pieceName} に進化！";
+    // 課題【撃破音+合成/進化/融合音】: ★2→★3進化SEの再生
+    if (AudioManager.Instance != null) AudioManager.Instance.PlayEvolveSE();
+
     DamagePopup.Create(popupPos, popupText, DamagePopupType.Critical);
 
     Debug.Log($"✨【★3進化】{keepPiece.pieceName} が『{(!string.IsNullOrEmpty(keepPiece.evolvedVariantName) ? keepPiece.evolvedVariantName : "無銘")}』に進化しました！（傾向: {variant}）");
@@ -1648,6 +1603,10 @@ public class DebugGameManager : MonoBehaviour
     SpawnPieceAt(recipe.resultType, false, resultColor, spawnPos);
 
     Vector3 popupPos = spawnPos + Vector3.up * 1.1f;
+
+    // 課題【撃破音+合成/進化/融合音】: 異種融合SEの再生
+    if (AudioManager.Instance != null) AudioManager.Instance.PlayFusionSE();
+
     DamagePopup.Create(popupPos, $"{recipe.recipeName}！", DamagePopupType.Critical);
 
     Debug.Log($"⚔️【異種合成】{recipe.recipeName}（{recipe.materialType1}×{recipe.materialCount1} + {recipe.materialType2}×{recipe.materialCount2} → {recipe.resultType}）");
@@ -1679,7 +1638,7 @@ public class DebugGameManager : MonoBehaviour
 
     // 課題【UIの排他制御】: 選択モードが開始されるタイミングで、墓地/スキルツリー/AIパターン選択が
     // 開いていたら強制的に閉じる
-    CloseAllSidePanels();
+    sidePanelController.CloseAllSidePanels();
 
     isSelectionModeActive = true;
     selectionFromRank = fromRank;
@@ -1704,7 +1663,7 @@ public class DebugGameManager : MonoBehaviour
 
     // 課題【UIの排他制御】: 選択モードが開始されるタイミングで、墓地/スキルツリー/AIパターン選択が
     // 開いていたら強制的に閉じる
-    CloseAllSidePanels();
+    sidePanelController.CloseAllSidePanels();
 
     isSelectionModeActive = true;
     selectionFromRank = 0;
@@ -2389,6 +2348,9 @@ public class DebugGameManager : MonoBehaviour
     }
 
     isBattleStarted = true;
+
+    // 課題【サウンドシステム: BGM接続】: 戦闘開始のタイミングで戦闘BGMへ切り替える
+    if (AudioManager.Instance != null) AudioManager.Instance.PlayBattleBgm();
   }
 
   public void ResetScene()
@@ -2472,60 +2434,25 @@ public class DebugGameManager : MonoBehaviour
   public void UI_SetSpeed(int index) => SetSpeed(index);
   public void UI_ToggleSkip() => ToggleSkip();
 
-  // 課題【UIの排他制御】: 墓地/スキルツリー/AIパターン選択の3つは、
-  // 同時に1つしか開けないようにする（新しく開く前に、必ず他を閉じる）
-  void CloseAllSidePanels()
-  {
-    showCemeteryModal = false;
-    showSkillTreeModal = false;
-    if (PieceAIBehaviorSelectorModal.Instance != null) PieceAIBehaviorSelectorModal.Instance.Hide();
-    if (SettingsPanelUI.Instance != null) SettingsPanelUI.Instance.Hide();
-  }
+  // 課題【神クラス分割 第1弾】: 墓地/スキルツリー/設定パネルの排他制御はSidePanelControllerへ移設したため、
+  // 以下は全てsidePanelControllerへの委譲一行のみになっている（実装本体はSidePanelController.cs参照）。
 
   // 外部（PieceInspectPanelUI）からAIパターン選択を開く前に、開いてよいか確認・他を閉じるための公開API
-  public bool UI_CanOpenSidePanel() => !UI_IsBlockingModalOpen();
-  public void UI_CloseAllSidePanels() => CloseAllSidePanels();
+  public bool UI_CanOpenSidePanel() => sidePanelController.CanOpenSidePanel();
+  public void UI_CloseAllSidePanels() => sidePanelController.CloseAllSidePanels();
 
-  public void UI_ToggleSkillTree()
-  {
-    if (UI_IsBlockingModalOpen()) return;
-    bool opening = !showSkillTreeModal;
-    CloseAllSidePanels();
-    showSkillTreeModal = opening;
-  }
+  public void UI_ToggleSkillTree() => sidePanelController.ToggleSkillTree();
 
-  public void UI_ToggleCemetery()
-  {
-    if (UI_IsBlockingModalOpen()) return;
-    bool opening = !showCemeteryModal;
-    CloseAllSidePanels();
-    showCemeteryModal = opening;
-  }
+  public void UI_ToggleCemetery() => sidePanelController.ToggleCemetery();
 
-  // 課題【設定画面】: UI_ToggleCemetery/UI_ToggleSkillTreeと同じ考え方（開く前は他を閉じる・
-  // ブロック中は開けない）で設定画面の開閉を行う。既に開いている場合はブロック判定を経由せず、
-  // いつでも閉じられるようにする（設定画面は成長ボーナス選択中等でも「閉じる」操作自体は妨げない）。
-  public void UI_ToggleSettings()
-  {
-    if (SettingsPanelUI.Instance == null) return;
-
-    if (SettingsPanelUI.Instance.IsOpen)
-    {
-      SettingsPanelUI.Instance.Hide();
-      return;
-    }
-
-    if (UI_IsBlockingModalOpen()) return;
-    CloseAllSidePanels();
-    SettingsPanelUI.Instance.Show();
-  }
+  public void UI_ToggleSettings() => sidePanelController.ToggleSettings();
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
   public void UI_ToggleDebugMenu() => showDebugMenu = !showDebugMenu;
 #endif
 
-  public bool UI_IsSkillTreeModalOpen() => showSkillTreeModal;
-  public bool UI_IsCemeteryModalOpen() => showCemeteryModal;
+  public bool UI_IsSkillTreeModalOpen() => sidePanelController.IsSkillTreeModalOpen;
+  public bool UI_IsCemeteryModalOpen() => sidePanelController.IsCemeteryModalOpen;
 
   // ステップ13: 旧OnGUI版DrawSkillTreeModal内にあったスキル強化ロジックを、
   // UIManager（UGUIボタン）から呼び出せる公開APIとして独立させたもの。
