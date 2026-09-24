@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class BoardGenerator : MonoBehaviour
@@ -5,6 +6,8 @@ public class BoardGenerator : MonoBehaviour
   [Header("マテリアル設定")]
   public Material whiteMat;
   public Material blackMat;
+
+  private readonly Dictionary<Vector2Int, BoardTile> tiles = new();
 
   void Start()
   {
@@ -27,11 +30,10 @@ public class BoardGenerator : MonoBehaviour
         tile.transform.rotation = Quaternion.Euler(90, 0, 0);
 
         bool isWhite = (x + z) % 2 == 0;
-        Renderer ren = tile.GetComponent<Renderer>();
-        if (ren != null)
-        {
-          ren.material = isWhite ? whiteMat : blackMat;
-        }
+        var boardTile = tile.AddComponent<BoardTile>();
+        boardTile.Initialize(isWhite ? whiteMat : blackMat);
+
+        tiles[new Vector2Int(x, z)] = boardTile;
       }
     }
   }
@@ -55,4 +57,6 @@ public class BoardGenerator : MonoBehaviour
       }
     }
   }
+
+  public BoardTile GetTile(Vector2Int pos) => tiles.TryGetValue(pos, out var t) ? t : null;
 }
