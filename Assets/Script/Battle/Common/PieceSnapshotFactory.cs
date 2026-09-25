@@ -27,7 +27,8 @@ namespace Chebyss.Battle
             int currentHp,
             int attack,
             IReadOnlyDictionary<string, float> statModifiers,
-            IEnumerable<ActiveStatusEffect> statusEffects)
+            IEnumerable<ActiveStatusEffect> statusEffects,
+            EnemyArchetype enemyArchetype = default)
         {
             var effectsCopy = new List<ActiveStatusEffect>(
                 (statusEffects ?? Enumerable.Empty<ActiveStatusEffect>())
@@ -49,7 +50,8 @@ namespace Chebyss.Battle
                 attack = attack,
                 statModifiers = resolvedStatModifiers,
                 statusEffects = effectsCopy,
-                actionsLeft = isPlayerSide ? ComputeMaxActions(resolvedStatModifiers) : 0
+                actionsLeft = isPlayerSide ? ComputeMaxActions(resolvedStatModifiers) : 0,
+                enemyArchetype = enemyArchetype
             };
         }
     }

@@ -407,5 +407,7 @@ Steam Very Positive以上の評価獲得
 - BattleTurnController（プレイヤーターン⇔敵ターンの統合）の設計 ※実装済み（`Chebyss.Battle.BattleTurnController`）
 - 本格的な戦績画面（経験値・ドロップ・スコア表示）の設計。ポーンの経験値数値・ドロップアイテム内容・スコア計算式が確定してから着手する（現状の`BattleResultPanelUI`は最小限のVictory/Defeat表示のみ）
 - リトライ方式の再設計（Phase3のラン構造実装後、シーンリロードから「同じ配置からもう一度」等へ発展させる）
+- 敵の初期配置データ（フロア・呪縛レベルに応じた出現テーブル）。Phase1プロトタイプでは`BattleBootstrapper`内の固定データ（ボス1体・スカウト2体）で代用している
+- 敵の正式な見た目・PieceType的な分類（現状はPawnを仮の見た目として流用）
 - ポーン複数体運用時の駒識別方式の再設計（PieceType→駒ごとの一意ID）。PlacementController・BattleTurnController双方に影響
 

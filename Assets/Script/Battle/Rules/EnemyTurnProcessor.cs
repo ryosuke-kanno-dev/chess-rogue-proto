@@ -5,12 +5,12 @@ namespace Chebyss.Battle
 {
     public class EnemyTurnProcessor
     {
-        private readonly IReadOnlyDictionary<PieceType, IEnemyMoveRule> rules;
-        private readonly IReadOnlyDictionary<PieceType, EnemyMovementPatternSO> patterns;
+        private readonly IReadOnlyDictionary<EnemyArchetype, IEnemyMoveRule> rules;
+        private readonly IReadOnlyDictionary<EnemyArchetype, EnemyMovementPatternSO> patterns;
 
         public EnemyTurnProcessor(
-            IReadOnlyDictionary<PieceType, IEnemyMoveRule> rules,
-            IReadOnlyDictionary<PieceType, EnemyMovementPatternSO> patterns)
+            IReadOnlyDictionary<EnemyArchetype, IEnemyMoveRule> rules,
+            IReadOnlyDictionary<EnemyArchetype, EnemyMovementPatternSO> patterns)
         {
             this.rules = rules;
             this.patterns = patterns;
@@ -22,8 +22,14 @@ namespace Chebyss.Battle
             {
                 if (!board.TryGetEnemyPiece(enemyPos, out var enemy)) continue;
 
-                var pattern = patterns[enemy.pieceType];
-                var rule = rules[enemy.pieceType];
+                // 未登録のアーキタイプはクラッシュではなく「何もしない」で安全側に倒す
+                // （BattleTurnControllerのTryGetValue対応と同じ理由）
+                if (!rules.TryGetValue(enemy.enemyArchetype, out var rule) ||
+                    !patterns.TryGetValue(enemy.enemyArchetype, out var pattern))
+                {
+                    continue;
+                }
+
                 var destination = rule.DetermineMoveDestination(enemy, board, pattern);
                 var finalPosition = enemy.position;
 
@@ -37,7 +43,7 @@ namespace Chebyss.Battle
                 {
                     var kingDamageOutcome = new AttackOutcome(
                         damage: pattern.kingDamage,
-                        targetDefeated: false, // キングは墓地対象外のため常にfalse
+                        targetDefeated: false,
                         appliedEffects: null,
                         knockbackDestination: null,
                         pursuitMoveCandidates: null,

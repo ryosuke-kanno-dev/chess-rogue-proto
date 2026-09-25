@@ -30,5 +30,9 @@ namespace Chebyss.Battle
 
         // このターン残っている行動回数。敵駒（isPlayerSide=false）では未使用（常に0）。
         public int actionsLeft;
+
+        // 敵駒の行動パターンを識別する。isPlayerSide=trueの駒では未使用。
+        // PieceTypeはチェスの駒の見た目分類であり、ボス/スカウト等の敵種別とは別軸のため分離した。
+        public EnemyArchetype enemyArchetype;
     }
 }
