@@ -12,6 +12,7 @@ namespace Chebyss.Battle
     /// </summary>
     public static class PieceSnapshotFactory
     {
+        private static int nextInstanceId = 1;
         // 通常は1回。"BonusActions"（例："疾風の足"アイテム）があればその分加算する。
         // BoardState.ResetPlayerActionsLeftからも参照する共通ロジック。
         public static int ComputeMaxActions(IReadOnlyDictionary<string, float> statModifiers)
@@ -43,6 +44,7 @@ namespace Chebyss.Battle
 
             return new PieceSnapshot
             {
+                instanceId = nextInstanceId++,
                 pieceType = pieceType,
                 isPlayerSide = isPlayerSide,
                 position = position,

@@ -409,5 +409,9 @@ Steam Very Positive以上の評価獲得
 - リトライ方式の再設計（Phase3のラン構造実装後、シーンリロードから「同じ配置からもう一度」等へ発展させる）
 - 敵の初期配置データ（フロア・呪縛レベルに応じた出現テーブル）。Phase1プロトタイプでは`BattleBootstrapper`内の固定データ（ボス1体・スカウト2体）で代用している
 - 敵の正式な見た目・PieceType的な分類（現状はPawnを仮の見た目として流用）
-- ポーン複数体運用時の駒識別方式の再設計（PieceType→駒ごとの一意ID）。PlacementController・BattleTurnController双方に影響
+- 装備効果（lifesteal・taunt・doubleAttack・attackInterval等）とEquipmentStatTypeを、Chebyss.Battle側のstatModifiers（BonusActions・DistanceBonusRate等）へどう対応させるか。Phase2アイテムシステム設計時に着手する
+- 配置完了ボタン・ターン終了ボタンのUI実装（現状はEnterキーで代用）
+- 見た目の同期（BoardStateの変化を3Dモデルの位置へ反映する仕組み）。現状PieceBoardLinkが論理座標のみを保持しており、モデル自体は移動後も見た目の位置が変わらない
+- 本格的な撃破演出（現状はGameObjectを即座に削除するのみ）
+- ポーン複数体運用時の駒識別方式の再設計（この項目は`instanceId`導入により対応方針が決定：`PieceType`ではなく`instanceId`で管理する。ただし`PlacementController`は今回未対応で、現状も`PieceType`をキーとして使っている点は要フォローアップ）
 

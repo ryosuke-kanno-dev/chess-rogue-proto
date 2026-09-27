@@ -8,9 +8,19 @@ public class BoardGenerator : MonoBehaviour
   public Material blackMat;
 
   private readonly Dictionary<Vector2Int, BoardTile> tiles = new();
+  private bool isGenerated = false;
 
   void Start()
   {
+    EnsureGenerated();
+  }
+
+  // BattleBootstrapper.Awake()等、Start()より前にタイル情報が必要な場合に
+  // 明示的に呼び出すための公開メソッド。二重生成しないようフラグで保護する。
+  public void EnsureGenerated()
+  {
+    if (isGenerated) return;
+    isGenerated = true;
     GenerateBoard();
     GenerateBench();
   }
@@ -31,7 +41,8 @@ public class BoardGenerator : MonoBehaviour
 
         bool isWhite = (x + z) % 2 == 0;
         var boardTile = tile.AddComponent<BoardTile>();
-        boardTile.Initialize(isWhite ? whiteMat : blackMat);
+        boardTile.Initialize(isWhite ? whiteMat : blackMat, new Vector2Int(x, z));
+        tile.layer = LayerMask.NameToLayer("BoardTile");
 
         tiles[new Vector2Int(x, z)] = boardTile;
       }

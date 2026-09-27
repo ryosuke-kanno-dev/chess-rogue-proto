@@ -119,6 +119,53 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &123610503
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 123610504}
+  - component: {fileID: 123610505}
+  m_Layer: 0
+  m_Name: BattleInputController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &123610504
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 123610503}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -3.34669, y: 0, z: -0.16226}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &123610505
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 123610503}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7ccc174c64df84b46a03ef397c242c21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BattleInputController
+  bootstrapper: {fileID: 1396463902}
+  highlightController: {fileID: 739341779}
+  boardGenerator: {fileID: 743558630}
 --- !u!1 &157913509
 GameObject:
   m_ObjectHideFlags: 0
@@ -246,6 +293,118 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!1 &499790430
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 499790432}
+  - component: {fileID: 499790431}
+  m_Layer: 0
+  m_Name: TestKnightPiece
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!114 &499790431
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 499790430}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b906d0c0b8684348b4cae84e63110d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PieceData
+  pieceName: "\u30DD\u30FC\u30F3"
+  type: 1
+  rank: 1
+  isEnemy: 0
+  enemyArchetype: 0
+  aiBehavior: {fileID: 0}
+  growthHistory: 
+  evolvedVariantName: 
+  evolvedVariantDescription: 
+  bonusEquipSlots: 0
+  maxHp: 1200
+  currentHp: 1200
+  attack: 200
+  attackInterval: 2
+  lifestealRate: 0
+  isOnBuffTile: 0
+  hasAdjacentBuff: 0
+  kingBonusAttack: 0
+  equippedItems: []
+  isTaunting: 0
+  doubleAttackChance: 0
+  savedPosition: {x: 0, y: 0, z: 0}
+  hasRebirthedThisBattle: 0
+--- !u!4 &499790432
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 499790430}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -6.55128, y: 0, z: 0.04991}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &739341777
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 739341778}
+  - component: {fileID: 739341779}
+  m_Layer: 0
+  m_Name: TileHighlightController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &739341778
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 739341777}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -3.34669, y: 0, z: -0.16226}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &739341779
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 739341777}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10ea301a8e1a97a45a8aa69c918b4d93, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TileHighlightController
+  boardGenerator: {fileID: 743558630}
 --- !u!1 &743558629
 GameObject:
   m_ObjectHideFlags: 0
@@ -308,7 +467,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &840999173
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -348,6 +507,7 @@ GameObject:
   - component: {fileID: 1354630062}
   - component: {fileID: 1354630061}
   - component: {fileID: 1354630060}
+  - component: {fileID: 1354630063}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -422,13 +582,57 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1354630059}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: -10}
+  m_LocalRotation: {x: 0.4848096, y: 0, z: 0, w: 0.8746197}
+  m_LocalPosition: {x: 0, y: 9, z: -5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 58, y: 0, z: 0}
+--- !u!114 &1354630063
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1354630059}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
+  m_RenderShadows: 1
+  m_RequiresDepthTextureOption: 2
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 0
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 0
+  m_Antialiasing: 0
+  m_AntialiasingQuality: 2
+  m_StopNaN: 0
+  m_Dithering: 0
+  m_ClearDepth: 1
+  m_AllowXRRendering: 1
+  m_AllowHDROutput: 1
+  m_UseScreenCoordOverride: 0
+  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_TaaSettings:
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+    m_ContrastAdaptiveSharpening: 0
+  m_Version: 2
 --- !u!1 &1396463901
 GameObject:
   m_ObjectHideFlags: 0
@@ -466,12 +670,15 @@ MonoBehaviour:
   knightPattern: {fileID: 11400000, guid: b42069f6248815e4ba2f0a4c8aec4d03, type: 2}
   rookPattern: {fileID: 11400000, guid: 82e3716df1d05c544bad3cb71b4332e1, type: 2}
   bishopPattern: {fileID: 11400000, guid: 2ba8532ac54969b4f96851414edbd7f1, type: 2}
-  knightHp: 10
-  knightAttack: 5
-  rookHp: 12
-  rookAttack: 4
-  bishopHp: 8
-  bishopAttack: 3
+  knightPrefab: {fileID: 474001556575975660, guid: 26e1d0a960ead5043b11418fdb39ce8b, type: 3}
+  rookPrefab: {fileID: 3914447735878845235, guid: 73c49dce7a2448a4a9695bc8c037c9c7, type: 3}
+  bishopPrefab: {fileID: 525657384273326131, guid: c56ecc1e128e36444aa92ecc09761d1a, type: 3}
+  kingPrefab: {fileID: 8048177166508372624, guid: ba03ce6cf46be0340b7bf0d50712ce11, type: 3}
+  pawnPrefab: {fileID: 2349975590184600037, guid: 6b0f8918d329ad149a5c4fd153dfab37, type: 3}
+  knightStagingPosition: {x: -5.5, y: 0.25, z: -2.5}
+  rookStagingPosition: {x: -5.5, y: 0.25, z: -1.5}
+  bishopStagingPosition: {x: -5.5, y: 0.25, z: -0.5}
+  boardGenerator: {fileID: 743558630}
   bossPattern: {fileID: 11400000, guid: 3982524b0fc90084f9ec8eb78b1c157d, type: 2}
   scoutPattern: {fileID: 11400000, guid: ee1acf20f59bb0b479aa39a0d68062b8, type: 2}
   retreaterPattern: {fileID: 11400000, guid: 78d1b41b5f10a8940a175d0e879e5b6e, type: 2}
@@ -507,3 +714,6 @@ SceneRoots:
   - {fileID: 1396463903}
   - {fileID: 743558631}
   - {fileID: 840999174}
+  - {fileID: 499790432}
+  - {fileID: 739341778}
+  - {fileID: 123610504}

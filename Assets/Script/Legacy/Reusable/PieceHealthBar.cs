@@ -14,6 +14,13 @@ public class PieceHealthBar : MonoBehaviour
   private const float HighHpRatio = 0.6f;
   private const float LowHpRatio = 0.3f;
 
+  [Header("HPバーの見た目調整（DebugGameManager.PieceModelDataが使えない場合のデフォルト値）")]
+  [SerializeField] private float defaultBarHeightOffset = 1.2f;
+  [SerializeField] private float defaultTextHeightOffset = 1.45f;
+  [SerializeField] private Vector2 barSize = new Vector2(1.2f, 0.2f);
+  [SerializeField] private float textCanvasScale = 0.005f;
+  [SerializeField] private int hpTextFontSize = 46;
+
   void Start()
   {
     targetPiece = GetComponent<PieceData>();
@@ -33,7 +40,7 @@ public class PieceHealthBar : MonoBehaviour
       var entry = DebugGameManager.Instance.PieceModelData.GetEntry(targetPiece.type);
       if (entry != null) return entry.healthBarHeight;
     }
-    return 1.2f;
+    return defaultBarHeightOffset;
   }
 
   float GetHealthBarTextHeight()
@@ -43,7 +50,7 @@ public class PieceHealthBar : MonoBehaviour
       var entry = DebugGameManager.Instance.PieceModelData.GetEntry(targetPiece.type);
       if (entry != null) return entry.healthBarTextHeight;
     }
-    return 1.45f;
+    return defaultTextHeightOffset;
   }
 
   void CreateHealthBarUI()
@@ -56,8 +63,8 @@ public class PieceHealthBar : MonoBehaviour
     canvas.renderMode = RenderMode.WorldSpace;
 
     RectTransform canvasRect = canvasObj.GetComponent<RectTransform>();
-    canvasRect.sizeDelta = new Vector2(1.2f, 0.2f);
-    canvasObj.transform.localScale = new Vector3(1, 1, 1);
+    canvasRect.sizeDelta = barSize;
+    canvasObj.transform.localScale = Vector3.one;
 
     // 絶対にエラーの出ない1x1の白スプライトを動的に生成
     Texture2D whiteTexture = Texture2D.whiteTexture;
@@ -106,7 +113,7 @@ public class PieceHealthBar : MonoBehaviour
 
     RectTransform textCanvasRect = textCanvasObj.GetComponent<RectTransform>();
     textCanvasRect.sizeDelta = new Vector2(240f, 80f);
-    textCanvasObj.transform.localScale = Vector3.one * 0.005f; // バーとほぼ同じ幅（1.2ワールド単位）に収まるよう調整
+    textCanvasObj.transform.localScale = Vector3.one * textCanvasScale; // バーとほぼ同じ幅（1.2ワールド単位）に収まるよう調整
 
     GameObject textObj = new GameObject("HP_Text");
     textObj.transform.SetParent(textCanvasObj.transform, false);
@@ -114,7 +121,7 @@ public class PieceHealthBar : MonoBehaviour
     hpText = textObj.AddComponent<Text>();
     hpText.alignment = TextAnchor.MiddleCenter;
     hpText.font = GetDefaultFont();
-    hpText.fontSize = 46;
+    hpText.fontSize = hpTextFontSize;
     hpText.fontStyle = FontStyle.Bold;
     hpText.horizontalOverflow = HorizontalWrapMode.Overflow;
     hpText.verticalOverflow = VerticalWrapMode.Overflow;

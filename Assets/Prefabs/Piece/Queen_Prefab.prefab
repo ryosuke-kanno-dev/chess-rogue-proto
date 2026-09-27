@@ -9,6 +9,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2448035302066011723}
+  - component: {fileID: 5687012337155512185}
+  - component: {fileID: 2095327074267958795}
   m_Layer: 0
   m_Name: Queen_Prefab
   m_TagString: Untagged
@@ -24,14 +26,66 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6992185272231280309}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.7071068, y: 0, z: 0, w: 0.7071068}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
+  m_LocalScale: {x: 0.2, y: 0.2, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6117443678435655539}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: -90, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5687012337155512185
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6992185272231280309}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b906d0c0b8684348b4cae84e63110d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PieceData
+  pieceName: "\u30AF\u30A4\u30FC\u30F3"
+  type: 4
+  rank: 1
+  isEnemy: 0
+  enemyArchetype: 0
+  aiBehavior: {fileID: 0}
+  growthHistory: 
+  evolvedVariantName: 
+  evolvedVariantDescription: 
+  bonusEquipSlots: 0
+  maxHp: 1200
+  currentHp: 1200
+  attack: 200
+  attackInterval: 2
+  lifestealRate: 0
+  isOnBuffTile: 0
+  hasAdjacentBuff: 0
+  kingBonusAttack: 0
+  equippedItems: []
+  isTaunting: 0
+  doubleAttackChance: 0
+  savedPosition: {x: 0, y: 0, z: 0}
+  hasRebirthedThisBattle: 0
+--- !u!114 &2095327074267958795
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6992185272231280309}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de2334f21b65e51489a674ba6bc82ab7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PieceHealthBar
+  defaultBarHeightOffset: 6
+  defaultTextHeightOffset: 6.5
+  barSize: {x: 3, y: 0.5}
+  textCanvasScale: 0.01
+  hpTextFontSize: 46
 --- !u!1001 &6012094260279564440
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -87,10 +141,39 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 7df07615738bef947a3f41927c0a5803, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8514725611735328717}
   m_SourcePrefab: {fileID: 100100000, guid: 7df07615738bef947a3f41927c0a5803, type: 3}
 --- !u!4 &6117443678435655539 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 7df07615738bef947a3f41927c0a5803, type: 3}
   m_PrefabInstance: {fileID: 6012094260279564440}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &6894542850959992265 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 7df07615738bef947a3f41927c0a5803, type: 3}
+  m_PrefabInstance: {fileID: 6012094260279564440}
+  m_PrefabAsset: {fileID: 0}
+--- !u!65 &8514725611735328717
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6894542850959992265}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 3.0064445, y: 7.498617, z: 3.0085702}
+  m_Center: {x: 0.0021659732, y: 3.6631055, z: -0.0027298927}

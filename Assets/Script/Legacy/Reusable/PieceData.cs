@@ -33,6 +33,9 @@ public class PieceData : MonoBehaviour
   public int rank = 1; // ★ランク（1 = ★1, 2 = ★2）
   public bool isEnemy = false;
 
+  [Tooltip("isEnemy=trueの駒でのみ使用。Boss/Scout/Retreater等、敵の行動パターンを識別する")]
+  public Chebyss.Battle.EnemyArchetype enemyArchetype;
+
   // 課題3: isEnemy を PlayerType として読み取るための算出プロパティ
   public PlayerType Owner => isEnemy ? PlayerType.Enemy : PlayerType.Player;
 
@@ -628,6 +631,29 @@ public class PieceData : MonoBehaviour
         meshRenderer.material.color = originalColor;
         break;
     }
+  }
+
+  // Chebyss.Battle側のBoardStateへ渡すためのスナップショットを作る。
+  // 必ずChebyss.Battle.PieceSnapshotFactory経由で構築する（確定済み方針）。
+  // position: 配置先のグリッド座標。呼び出し側（配置操作・スポーン処理）が
+  // どのタイル（BoardTile.GridPosition）に置いたかを渡す。
+  // attackにはApplyEquipmentBonus()による装備補正が既に反映済みの値がそのまま乗る。
+  public Chebyss.Battle.PieceSnapshot CreateSnapshot(Vector2Int position)
+  {
+    // TODO: 疾風の足（BonusActions）・距離ボーナス系アイテム（DistanceBonusRate）は
+    // 現状のEquipmentStatTypeに対応する項目がないため反映していない。
+    // Phase2のアイテムシステム設計時にEquipmentStatTypeへ追加し、ここも合わせて更新する。
+    var statModifiers = new Dictionary<string, float>();
+
+    return Chebyss.Battle.PieceSnapshotFactory.Create(
+        pieceType: type,
+        isPlayerSide: !isEnemy,
+        position: position,
+        currentHp: currentHp,
+        attack: attack,
+        statModifiers: statModifiers,
+        statusEffects: null,
+        enemyArchetype: enemyArchetype);
   }
 }
 

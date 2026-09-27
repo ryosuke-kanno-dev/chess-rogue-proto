@@ -14,14 +14,23 @@ public class BoardTile : MonoBehaviour
     public Color movableColor = new Color(0.3f, 0.5f, 1f);
     public Color attackableColor = new Color(1f, 0.3f, 0.3f);
 
+    public Vector2Int GridPosition { get; private set; }
+
+    [Header("ハイライトの混ぜ具合（0=元の色のまま、1=ハイライト色そのまま）")]
+    [Range(0f, 1f)]
+    public float highlightBlendFactor = 0.6f;
+
     private Renderer ren;
     private Material defaultMaterial;
+    private Color originalColor;
 
-    public void Initialize(Material baseMaterial)
+    public void Initialize(Material baseMaterial, Vector2Int gridPosition)
     {
         ren = GetComponent<Renderer>();
         defaultMaterial = baseMaterial;
         ren.material = baseMaterial;
+        originalColor = baseMaterial.color;
+        GridPosition = gridPosition;
     }
 
     public void SetHighlight(HighlightType type)
@@ -32,10 +41,11 @@ public class BoardTile : MonoBehaviour
                 ren.material = defaultMaterial;
                 break;
             case HighlightType.Movable:
-                ren.material.color = movableColor;
+                // 元のチェッカー色を完全に上書きせず、混ぜることでマスの境界（白黒模様）を保つ
+                ren.material.color = Color.Lerp(originalColor, movableColor, highlightBlendFactor);
                 break;
             case HighlightType.Attackable:
-                ren.material.color = attackableColor;
+                ren.material.color = Color.Lerp(originalColor, attackableColor, highlightBlendFactor);
                 break;
         }
     }

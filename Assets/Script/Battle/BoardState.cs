@@ -68,6 +68,28 @@ namespace Chebyss.Battle
         public IEnumerable<Vector2Int> GetAllEnemyPiecePositionsOrdered() =>
             enemyPieces.Keys.OrderBy(p => p.x).ThenBy(p => p.y);
 
+        public bool TryFindPieceById(int instanceId, out PieceSnapshot piece, out bool isPlayerSide, out Vector2Int position)
+        {
+            foreach (var kvp in playerPieces)
+            {
+                if (kvp.Value.instanceId == instanceId)
+                {
+                    piece = kvp.Value; isPlayerSide = true; position = kvp.Key;
+                    return true;
+                }
+            }
+            foreach (var kvp in enemyPieces)
+            {
+                if (kvp.Value.instanceId == instanceId)
+                {
+                    piece = kvp.Value; isPlayerSide = false; position = kvp.Key;
+                    return true;
+                }
+            }
+            piece = default; isPlayerSide = false; position = default;
+            return false;
+        }
+
         // ---- 書き換え（専用メソッド経由のみ） ----
         // actionsLeftなど、駒の一部フィールドのみを更新するための単純な書き込み。
         // ApplyMove/ApplyAttackのような意味のある操作とは区別する。

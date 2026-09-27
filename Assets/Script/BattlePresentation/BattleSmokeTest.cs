@@ -26,6 +26,25 @@ public class BattleSmokeTest : MonoBehaviour
         bootstrapper.TurnController.EndPlayerTurn();
         Debug.Log("[SmokeTest] ターン終了後のフェーズ: " + bootstrapper.TurnController.CurrentPhase
             + " / 現在のターン数: " + bootstrapper.Board.CurrentTurn);
+
+        var testPieceGO = GameObject.Find("TestKnightPiece");
+        if (testPieceGO == null)
+        {
+            Debug.LogError("[SmokeTest] シーン上にGameObject「TestKnightPiece」が見つかりません。PieceDataをアタッチしたGameObjectをこの名前で作成してください。");
+        }
+        else
+        {
+            var pieceData = testPieceGO.GetComponent<PieceData>();
+            if (pieceData == null)
+            {
+                Debug.LogError("[SmokeTest] TestKnightPieceにPieceDataコンポーネントがアタッチされていません。");
+            }
+            else
+            {
+                var snapshot = pieceData.CreateSnapshot(new Vector2Int(0, 0));
+                Debug.Log($"[SmokeTest] CreateSnapshot確認: pieceType={snapshot.pieceType}, isPlayerSide={snapshot.isPlayerSide}, currentHp={snapshot.currentHp}, attack={snapshot.attack}");
+            }
+        }
     }
 
     private void Log(string label, PlacementResult result)

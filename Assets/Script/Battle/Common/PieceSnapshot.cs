@@ -16,6 +16,7 @@ namespace Chebyss.Battle
     /// </summary>
     public struct PieceSnapshot
     {
+        public int instanceId;
         public PieceType pieceType; // 既存コード（PieceData.cs）のPieceType enumをそのまま使用
         public bool isPlayerSide;
         public Vector2Int position;
