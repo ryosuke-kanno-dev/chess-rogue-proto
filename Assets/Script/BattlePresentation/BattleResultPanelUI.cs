@@ -1,21 +1,24 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using TMPro;
 using Chebyss.Battle;
 
+// 注意：このコンポーネントは、panelRoot（結果パネル）とは別の「常にアクティブなGameObject」
+// （BattleResultCanvas）にアタッチすること。panelRoot自身にアタッチすると、Start()で
+// SetActive(false)した時点でUpdate()が止まり、二度と表示されなくなる。
 public class BattleResultPanelUI : MonoBehaviour
 {
+    [SerializeField] private BattleBootstrapper bootstrapper;
     [SerializeField] private GameObject panelRoot;
     [SerializeField] private TextMeshProUGUI resultTitleText;
     [SerializeField] private Button retryButton;
 
-    private BattleTurnController turnController;
-    private BattlePhase lastPhase = BattlePhase.PlayerTurn;
+    [Header("表示文言（フォント対応・多言語対応のためInspectorから変更可能にする）")]
+    [SerializeField] private string victoryMessage = "勝利！";
+    [SerializeField] private string defeatMessage = "チェックメイト";
 
-    public void Initialize(BattleTurnController controller)
-    {
-        turnController = controller;
-    }
+    private BattlePhase lastPhase = BattlePhase.PlayerTurn;
 
     void Start()
     {
@@ -25,25 +28,26 @@ public class BattleResultPanelUI : MonoBehaviour
 
     void Update()
     {
+        var turnController = bootstrapper.TurnController;
         if (turnController == null) return;
 
         var phase = turnController.CurrentPhase;
         if (phase == lastPhase) return;
         lastPhase = phase;
 
-        if (phase == BattlePhase.Victory) Show("勝利！");
-        else if (phase == BattlePhase.Defeat) Show("チェックメイト");
+        if (phase == BattlePhase.Victory) Show(victoryMessage);
+        else if (phase == BattlePhase.Defeat) Show(defeatMessage);
     }
 
-    private void Show(string title)
+    private void Show(string message)
     {
-        if (resultTitleText != null) resultTitleText.text = title;
+        if (resultTitleText != null) resultTitleText.text = message;
         if (panelRoot != null) panelRoot.SetActive(true);
     }
 
     private void OnRetryClicked()
     {
-        UnityEngine.SceneManagement.SceneManager.LoadScene(
-            UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
+        // 現在のシーンがBuild Profilesのシーンリストに追加されている必要がある
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 }

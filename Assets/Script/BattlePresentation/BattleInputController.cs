@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
@@ -12,10 +11,13 @@ public class BattleInputController : MonoBehaviour
     [SerializeField] private BoardGenerator boardGenerator;
 
     private Camera mainCamera;
-    private PieceBoardLink selectedPieceLink;
+    private int lastSeenTurn;
 
-    // 撃破によってナイトの追撃移動が選べる状態かどうか
-    private PieceBoardLink pursuingPieceLink;
+    // 選択中の駒のグリッド座標（未選択ならnull）
+    private Vector2Int? selectedPos;
+
+    // ナイトの追撃移動を選択中の状態
+    private Vector2Int? pursuingKnightPos;
     private List<Vector2Int> pursuitCandidates;
 
     void Start()
@@ -26,128 +28,167 @@ public class BattleInputController : MonoBehaviour
     void Update()
     {
         var turnController = bootstrapper.TurnController;
-        if (turnController == null || turnController.CurrentPhase != BattlePhase.PlayerTurn) return;
+        if (turnController == null) return;
+
+        var board = bootstrapper.Board;
+        if (board.CurrentTurn != lastSeenTurn)
+        {
+            // ターンが進んだら、選択・追撃移動待ちの状態を破棄する
+            lastSeenTurn = board.CurrentTurn;
+            CancelInteraction();
+        }
+
+        if (turnController.CurrentPhase != BattlePhase.PlayerTurn) return;
         if (Mouse.current == null) return;
         if (mainCamera == null) mainCamera = Camera.main;
         if (mainCamera == null) return;
         if (!Mouse.current.leftButton.wasPressedThisFrame) return;
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
+        if (!TryResolveClickedCell(out var cell)) return;
+
+        if (pursuingKnightPos.HasValue)
+        {
+            HandlePursuitClick(cell, turnController);
+            return;
+        }
+
+        HandleCellClick(cell, turnController);
+    }
+
+    // クリックしたものが「タイル」でも「駒の3Dモデル」でも、盤面上のどのマスを
+    // 指しているかに統一して解決する。駒のコライダーがタイルへのクリックを横取りして
+    // 敵を攻撃できなくなる問題を防ぐ。
+    private bool TryResolveClickedCell(out Vector2Int cell)
+    {
+        cell = default;
         Ray ray = mainCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
-        if (!Physics.Raycast(ray, out RaycastHit hit)) return;
+        if (!Physics.Raycast(ray, out RaycastHit hit)) return false;
 
-        var clickedTile = hit.collider.GetComponent<BoardTile>();
-
-        if (pursuingPieceLink != null)
+        var tile = hit.collider.GetComponent<BoardTile>();
+        if (tile != null)
         {
-            if (clickedTile != null) HandlePursuitClick(clickedTile.GridPosition, turnController);
-            return;
+            cell = tile.GridPosition;
+            return true;
         }
 
-        var clickedLink = hit.transform.GetComponentInParent<PieceBoardLink>();
-
-        if (clickedLink != null)
+        var link = hit.collider.GetComponentInParent<PieceBoardLink>();
+        if (link != null)
         {
-            HandlePieceClick(clickedLink, turnController);
-            return;
+            cell = link.GridPosition;
+            return true;
         }
 
-        if (clickedTile != null && selectedPieceLink != null)
-        {
-            HandleTileClick(clickedTile.GridPosition, turnController);
-        }
+        return false;
     }
 
-    private void HandlePieceClick(PieceBoardLink clicked, BattleTurnController turnController)
+    private void HandleCellClick(Vector2Int cell, BattleTurnController turnController)
     {
-        if (selectedPieceLink == clicked)
+        var board = bootstrapper.Board;
+
+        if (selectedPos.HasValue)
         {
-            turnController.Wait(clicked.GridPosition);
-            Deselect();
-            return;
-        }
+            var from = selectedPos.Value;
 
-        SelectPiece(clicked, turnController);
-    }
-
-    private void HandleTileClick(Vector2Int to, BattleTurnController turnController)
-    {
-        var from = selectedPieceLink.GridPosition;
-
-        if (to == from)
-        {
-            turnController.Wait(from);
-            Deselect();
-            return;
-        }
-
-        if (turnController.GetAttackableTiles(from).Contains(to))
-        {
-            var attackResult = turnController.ExecuteAttack(from, to, out var outcome);
-            Debug.Log($"[BattleInputController] 攻撃結果: damage={outcome.damage}, defeated={outcome.targetDefeated}");
-
-            bootstrapper.VisualSync.SyncAll(bootstrapper.Board);
-
-            if (attackResult == ActionResult.Success && outcome.PursuitMoveAvailable)
+            if (cell == from)
             {
-                BeginPursuitSelection(selectedPieceLink, outcome.pursuitMoveCandidates);
+                // 選択中の駒自身を再クリック → 待機
+                turnController.Wait(from);
+                Deselect();
                 return;
             }
 
-            Deselect();
-            return;
+            if (turnController.GetAttackableTiles(from).Contains(cell))
+            {
+                var attackResult = turnController.ExecuteAttack(from, cell, out var outcome);
+                Debug.Log($"[BattleInputController] 攻撃結果: damage={outcome.damage}, defeated={outcome.targetDefeated}, effects={outcome.appliedEffects.Count}");
+                bootstrapper.VisualSync.SyncAll(board);
+
+                if (attackResult == ActionResult.Success && outcome.PursuitMoveAvailable)
+                {
+                    BeginPursuitSelection(from, outcome.pursuitMoveCandidates);
+                    return;
+                }
+
+                Deselect();
+                return;
+            }
+
+            if (turnController.GetMovableTiles(from).Contains(cell))
+            {
+                var result = turnController.ExecuteMove(from, cell);
+                if (result == ActionResult.Success) bootstrapper.VisualSync.SyncAll(board);
+                Deselect();
+                return;
+            }
+            // どちらにも該当しない場合は、別の自駒をクリックしたなら選択を切り替える
         }
 
-        if (turnController.GetMovableTiles(from).Contains(to))
+        if (IsSelectablePlayerPiece(board, cell))
         {
-            var result = turnController.ExecuteMove(from, to);
-            if (result == ActionResult.Success)
-            {
-                bootstrapper.VisualSync.SyncAll(bootstrapper.Board);
-            }
-            Deselect();
+            Select(cell, turnController);
             return;
         }
 
         Deselect();
     }
 
-    private void BeginPursuitSelection(PieceBoardLink knightLink, IReadOnlyList<Vector2Int> candidates)
+    private static bool IsSelectablePlayerPiece(BoardState board, Vector2Int cell)
+    {
+        if (!board.TryGetPlayerPiece(cell, out var piece)) return false;
+
+        // キングは現状行動しない（「王の移動権」アイテム実装後に対象へ加える）
+        if (piece.pieceType == PieceType.King) return false;
+
+        // 行動回数を使い切った駒は、選択しても何もできないため選択させない
+        return piece.actionsLeft > 0;
+    }
+
+    private void BeginPursuitSelection(Vector2Int knightPos, IReadOnlyList<Vector2Int> candidates)
     {
         highlightController.ClearHighlights();
-        pursuingPieceLink = knightLink;
+        selectedPos = null;
+        pursuingKnightPos = knightPos;
         pursuitCandidates = new List<Vector2Int>(candidates);
 
         foreach (var pos in pursuitCandidates)
             boardGenerator.GetTile(pos)?.SetHighlight(HighlightType.Movable);
-
-        selectedPieceLink = null;
     }
 
-    private void HandlePursuitClick(Vector2Int to, BattleTurnController turnController)
+    private void HandlePursuitClick(Vector2Int cell, BattleTurnController turnController)
     {
-        if (pursuitCandidates.Contains(to))
+        if (pursuitCandidates.Contains(cell))
         {
-            turnController.ExecutePursuitMove(pursuingPieceLink.GridPosition, to);
+            turnController.ExecutePursuitMove(pursuingKnightPos.Value, cell);
             bootstrapper.VisualSync.SyncAll(bootstrapper.Board);
         }
 
-        foreach (var pos in pursuitCandidates)
-            boardGenerator.GetTile(pos)?.SetHighlight(HighlightType.None);
-
-        pursuingPieceLink = null;
-        pursuitCandidates = null;
+        // 候補外をクリックした場合は追撃移動を辞退（その場に留まる）
+        CancelInteraction();
     }
 
-    private void SelectPiece(PieceBoardLink link, BattleTurnController turnController)
+    private void Select(Vector2Int cell, BattleTurnController turnController)
     {
-        selectedPieceLink = link;
-        highlightController.ShowHighlightsFor(turnController, link.GridPosition);
+        selectedPos = cell;
+        highlightController.ShowHighlightsFor(turnController, cell);
     }
 
     private void Deselect()
     {
-        selectedPieceLink = null;
+        selectedPos = null;
         highlightController.ClearHighlights();
+    }
+
+    private void CancelInteraction()
+    {
+        if (pursuitCandidates != null)
+        {
+            foreach (var pos in pursuitCandidates)
+                boardGenerator.GetTile(pos)?.SetHighlight(HighlightType.None);
+        }
+
+        pursuingKnightPos = null;
+        pursuitCandidates = null;
+        Deselect();
     }
 }

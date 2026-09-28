@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -32,6 +33,9 @@ public class BattleBootstrapper : MonoBehaviour
     [Header("参照")]
     [SerializeField] private BoardGenerator boardGenerator;
 
+    [Header("状態異常の表示（駒の頭上のSTUN/SLOWラベル）")]
+    [SerializeField] private StatusIndicatorSettings statusIndicatorSettings = new StatusIndicatorSettings();
+
     [Header("敵パターン（SOアセットを割り当てる）")]
     [SerializeField] private StraightAdvanceMovementPatternSO bossPattern;
     [SerializeField] private ChaseNearestMovementPatternSO scoutPattern;
@@ -60,11 +64,11 @@ public class BattleBootstrapper : MonoBehaviour
         boardGenerator.EnsureGenerated();
 
         VisualSync = gameObject.AddComponent<BattleVisualSync>();
-        VisualSync.Initialize(boardGenerator);
+        VisualSync.Initialize(boardGenerator, statusIndicatorSettings);
 
         var king = PieceSnapshotFactory.Create(
             PieceType.King, isPlayerSide: true, position: kingStartPosition,
-            currentHp: kingHp, attack: 0, statModifiers: null, statusEffects: null);
+            currentHp: kingHp, maxHp: kingHp, attack: 0, statModifiers: null, statusEffects: null);
         Board.PlacePiece(king);
         SpawnFixedStatVisual(kingPrefab, kingStartPosition, king.instanceId, kingHp);
 
@@ -94,7 +98,14 @@ public class BattleBootstrapper : MonoBehaviour
         SetupDraggable(bishopInstance, bishopStagingPosition, bishopSnapshot.instanceId);
 
         HighlightDeploymentZone();
+    }
 
+    // Awake内でInstantiateした駒のPieceData.Start()（SetupInitialStats）は
+    // Awake完了後に走り、HP等を旧設計のフォールバック値で上書きしてしまう。
+    // 1フレーム待ってから同期することで、BoardState（唯一の真実）の値が最終的な表示になる。
+    private IEnumerator Start()
+    {
+        yield return null;
         VisualSync.SyncAll(Board);
     }
 
@@ -134,7 +145,7 @@ public class BattleBootstrapper : MonoBehaviour
     {
         var boss = PieceSnapshotFactory.Create(
             PieceType.Pawn, isPlayerSide: false, position: bossStartPosition,
-            currentHp: bossHp, attack: bossAttack, statModifiers: null, statusEffects: null,
+            currentHp: bossHp, maxHp: bossHp, attack: bossAttack, statModifiers: null, statusEffects: null,
             enemyArchetype: EnemyArchetype.Boss);
         Board.PlacePiece(boss);
         SpawnFixedStatVisual(pawnPrefab, bossStartPosition, boss.instanceId, bossHp);
@@ -143,7 +154,7 @@ public class BattleBootstrapper : MonoBehaviour
         {
             var scout = PieceSnapshotFactory.Create(
                 PieceType.Pawn, isPlayerSide: false, position: pos,
-                currentHp: scoutHp, attack: scoutAttack, statModifiers: null, statusEffects: null,
+                currentHp: scoutHp, maxHp: scoutHp, attack: scoutAttack, statModifiers: null, statusEffects: null,
                 enemyArchetype: EnemyArchetype.Scout);
             Board.PlacePiece(scout);
             SpawnFixedStatVisual(pawnPrefab, pos, scout.instanceId, scoutHp);

@@ -11,5 +11,8 @@ namespace Chebyss.Battle
         public StatusEffectType type;
         public int remainingTurns;
         public float magnitude;
+        // 付与されたときのBoardState.CurrentTurn。スロウの「何ターンおきに動けるか」を、
+        // 付与ターンを起点に決定的に判定するために使う。
+        public int appliedTurn;
     }
 }

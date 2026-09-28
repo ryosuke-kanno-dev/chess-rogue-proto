@@ -21,6 +21,7 @@ namespace Chebyss.Battle
         public bool isPlayerSide;
         public Vector2Int position;
         public int currentHp;
+        public int maxHp;
         public int attack; // UnitStatusDataSO基礎値 + 装備補正の合算済み（全駒共通）
 
         // 駒種固有の「SO基礎値 + アイテム補正」の合算値。例: "DistanceBonusRate"（ナイト用）。

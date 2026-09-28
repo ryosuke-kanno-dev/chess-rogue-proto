@@ -650,6 +650,7 @@ public class PieceData : MonoBehaviour
         isPlayerSide: !isEnemy,
         position: position,
         currentHp: currentHp,
+        maxHp: maxHp,
         attack: attack,
         statModifiers: statModifiers,
         statusEffects: null,

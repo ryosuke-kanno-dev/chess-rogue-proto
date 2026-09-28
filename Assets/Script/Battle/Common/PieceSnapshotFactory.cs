@@ -26,6 +26,7 @@ namespace Chebyss.Battle
             bool isPlayerSide,
             Vector2Int position,
             int currentHp,
+            int maxHp,
             int attack,
             IReadOnlyDictionary<string, float> statModifiers,
             IEnumerable<ActiveStatusEffect> statusEffects,
@@ -37,7 +38,8 @@ namespace Chebyss.Battle
                     {
                         type = e.type,
                         remainingTurns = e.remainingTurns,
-                        magnitude = e.magnitude
+                        magnitude = e.magnitude,
+                        appliedTurn = e.appliedTurn
                     }));
 
             var resolvedStatModifiers = statModifiers ?? new Dictionary<string, float>();
@@ -49,6 +51,7 @@ namespace Chebyss.Battle
                 isPlayerSide = isPlayerSide,
                 position = position,
                 currentHp = currentHp,
+                maxHp = maxHp,
                 attack = attack,
                 statModifiers = resolvedStatModifiers,
                 statusEffects = effectsCopy,

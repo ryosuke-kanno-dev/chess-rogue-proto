@@ -144,11 +144,24 @@ namespace Chebyss.Battle
 
                 foreach (var onHit in outcome.appliedEffects)
                 {
+                    // 同種の効果が既にある場合は重複させず、残りターンと強さだけ更新する。
+                    // appliedTurnは据え置く。据え置かないと、スロウの「移動を飛ばすリズム」が
+                    // 再付与のたびに先頭へリセットされ、毎ターン撃ち続けると実質スタン
+                    // （毎ターン移動できない）になってしまう。
+                    var existing = mutableEffects.Find(e => e.type == onHit.type);
+                    if (existing != null)
+                    {
+                        existing.remainingTurns = Mathf.Max(existing.remainingTurns, onHit.duration);
+                        existing.magnitude = Mathf.Max(existing.magnitude, onHit.magnitude);
+                        continue;
+                    }
+
                     mutableEffects.Add(new ActiveStatusEffect
                     {
                         type = onHit.type,
                         remainingTurns = onHit.duration,
-                        magnitude = onHit.magnitude
+                        magnitude = onHit.magnitude,
+                        appliedTurn = CurrentTurn
                     });
                 }
             }

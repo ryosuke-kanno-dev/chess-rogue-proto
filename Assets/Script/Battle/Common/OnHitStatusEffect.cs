@@ -12,6 +12,6 @@ namespace Chebyss.Battle
     {
         public StatusEffectType type;
         public int duration;    // 付与ターン数
-        public float magnitude; // Stunでは未使用。Slowでは移動可能マス削減量など
+        public float magnitude; // Stunでは未使用。Slowでは移動間隔の延長ターン数（1なら2ターンに1回しか移動できない）
     }
 }

@@ -8,11 +8,13 @@ using Chebyss.Battle;
 public class BattleVisualSync : MonoBehaviour
 {
     private BoardGenerator boardGenerator;
+    private StatusIndicatorSettings statusSettings;
     private readonly List<PieceBoardLink> trackedLinks = new();
 
-    public void Initialize(BoardGenerator generator)
+    public void Initialize(BoardGenerator generator, StatusIndicatorSettings settings)
     {
         boardGenerator = generator;
+        statusSettings = settings;
     }
 
     public void Register(PieceBoardLink link)
@@ -51,8 +53,17 @@ public class BattleVisualSync : MonoBehaviour
             var pieceData = link.GetComponentInChildren<PieceData>(true);
             if (pieceData != null)
             {
+                pieceData.maxHp = snapshot.maxHp;
                 pieceData.currentHp = snapshot.currentHp;
             }
+
+            var indicator = link.GetComponent<PieceStatusIndicator>();
+            if (indicator == null)
+            {
+                indicator = link.gameObject.AddComponent<PieceStatusIndicator>();
+                indicator.Initialize(statusSettings);
+            }
+            indicator.SetEffects(snapshot.statusEffects);
         }
     }
 }
