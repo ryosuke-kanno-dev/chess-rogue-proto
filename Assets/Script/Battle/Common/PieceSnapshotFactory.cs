@@ -56,7 +56,8 @@ namespace Chebyss.Battle
                 statModifiers = resolvedStatModifiers,
                 statusEffects = effectsCopy,
                 actionsLeft = isPlayerSide ? ComputeMaxActions(resolvedStatModifiers) : 0,
-                enemyArchetype = enemyArchetype
+                enemyArchetype = enemyArchetype,
+                rank = 1
             };
         }
     }

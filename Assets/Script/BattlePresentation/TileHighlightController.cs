@@ -8,6 +8,7 @@ public class TileHighlightController : MonoBehaviour
 
     private List<Vector2Int> lastMovable = new();
     private List<Vector2Int> lastAttackable = new();
+    private Vector2Int? lastSelfPos;
 
     public void ShowHighlightsFor(BattleTurnController turnController, Vector2Int piecePos)
     {
@@ -15,6 +16,11 @@ public class TileHighlightController : MonoBehaviour
 
         lastMovable = turnController.GetMovableTiles(piecePos);
         lastAttackable = turnController.GetAttackableTiles(piecePos);
+
+        // 選択中の駒自身のマス（再クリックで待機）も示す。クリックしても何も
+        // ハイライトされないマスに見えると、待機できることに気づきにくいため。
+        lastSelfPos = piecePos;
+        boardGenerator.GetTile(piecePos)?.SetHighlight(HighlightType.SelectedSelf);
 
         foreach (var pos in lastMovable)
             boardGenerator.GetTile(pos)?.SetHighlight(HighlightType.Movable);
@@ -29,8 +35,11 @@ public class TileHighlightController : MonoBehaviour
             boardGenerator.GetTile(pos)?.SetHighlight(HighlightType.None);
         foreach (var pos in lastAttackable)
             boardGenerator.GetTile(pos)?.SetHighlight(HighlightType.None);
+        if (lastSelfPos.HasValue)
+            boardGenerator.GetTile(lastSelfPos.Value)?.SetHighlight(HighlightType.None);
 
         lastMovable.Clear();
         lastAttackable.Clear();
+        lastSelfPos = null;
     }
 }

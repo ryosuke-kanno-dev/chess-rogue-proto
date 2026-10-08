@@ -443,6 +443,12 @@ public class PieceData : MonoBehaviour
         case EquipmentStatType.Taunt:
           isTaunting = sign > 0;
           break;
+
+        case EquipmentStatType.BonusActions:
+        case EquipmentStatType.DistanceBonusRate:
+          // Chebyss.Battle側のCreateSnapshot()がequippedItemsから直接計算するため、
+          // ここでは何もしない（PieceDataに対応フィールドを持たせない）
+          break;
       }
     }
   }
@@ -640,11 +646,6 @@ public class PieceData : MonoBehaviour
   // attackにはApplyEquipmentBonus()による装備補正が既に反映済みの値がそのまま乗る。
   public Chebyss.Battle.PieceSnapshot CreateSnapshot(Vector2Int position)
   {
-    // TODO: 疾風の足（BonusActions）・距離ボーナス系アイテム（DistanceBonusRate）は
-    // 現状のEquipmentStatTypeに対応する項目がないため反映していない。
-    // Phase2のアイテムシステム設計時にEquipmentStatTypeへ追加し、ここも合わせて更新する。
-    var statModifiers = new Dictionary<string, float>();
-
     return Chebyss.Battle.PieceSnapshotFactory.Create(
         pieceType: type,
         isPlayerSide: !isEnemy,
@@ -652,9 +653,39 @@ public class PieceData : MonoBehaviour
         currentHp: currentHp,
         maxHp: maxHp,
         attack: attack,
-        statModifiers: statModifiers,
+        statModifiers: BuildBattleStatModifiers(),
         statusEffects: null,
         enemyArchetype: enemyArchetype);
+  }
+
+  // equippedItemsのうち、BonusActions・DistanceBonusRateのみをstatModifiersへ変換する。
+  // AttackFlat・HpFlatは既にApplyEquipmentBonus()でattack/maxHpへ直接反映済みのため、
+  // ここでは扱わない。AttackSpeedPercent・LifestealPercent・DoubleAttackChance・Tauntは
+  // ターン制の新設計に対応する概念が無いため変換しない（design doc未決定事項を参照）。
+  private Dictionary<string, float> BuildBattleStatModifiers()
+  {
+    var modifiers = new Dictionary<string, float>();
+
+    foreach (var item in equippedItems)
+    {
+      if (item == null || item.bonuses == null) continue;
+
+      foreach (var bonus in item.bonuses)
+      {
+        string key = bonus.statType switch
+        {
+          EquipmentStatType.BonusActions => "BonusActions",
+          EquipmentStatType.DistanceBonusRate => "DistanceBonusRate",
+          _ => null
+        };
+        if (key == null) continue;
+
+        modifiers.TryGetValue(key, out var current);
+        modifiers[key] = current + bonus.value;
+      }
+    }
+
+    return modifiers;
   }
 }
 

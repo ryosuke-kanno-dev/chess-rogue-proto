@@ -9,6 +9,7 @@ public class BattleInputController : MonoBehaviour
     [SerializeField] private BattleBootstrapper bootstrapper;
     [SerializeField] private TileHighlightController highlightController;
     [SerializeField] private BoardGenerator boardGenerator;
+    [SerializeField] private EnemyIntentDisplay intentDisplay;
 
     private Camera mainCamera;
     private int lastSeenTurn;
@@ -147,6 +148,7 @@ public class BattleInputController : MonoBehaviour
     private void BeginPursuitSelection(Vector2Int knightPos, IReadOnlyList<Vector2Int> candidates)
     {
         highlightController.ClearHighlights();
+        intentDisplay.ClearHighlights();
         selectedPos = null;
         pursuingKnightPos = knightPos;
         pursuitCandidates = new List<Vector2Int>(candidates);
@@ -170,6 +172,7 @@ public class BattleInputController : MonoBehaviour
     private void Select(Vector2Int cell, BattleTurnController turnController)
     {
         selectedPos = cell;
+        intentDisplay.ClearHighlights();
         highlightController.ShowHighlightsFor(turnController, cell);
     }
 
@@ -177,6 +180,14 @@ public class BattleInputController : MonoBehaviour
     {
         selectedPos = null;
         highlightController.ClearHighlights();
+        RefreshIntents();
+    }
+
+    private void RefreshIntents()
+    {
+        var turnController = bootstrapper.TurnController;
+        if (turnController != null && turnController.CurrentPhase == BattlePhase.PlayerTurn)
+            intentDisplay.UpdateIntents(bootstrapper.Board, turnController.EnemyTurnProcessor);
     }
 
     private void CancelInteraction()

@@ -90,10 +90,70 @@ namespace Chebyss.Battle
             return false;
         }
 
+        // インテント表示（敵の次の行動の予告）のために、実際の盤面に影響を与えず
+        // 敵ターンの処理を試しに実行するための複製を作る。
+        public BoardState Clone()
+        {
+            var clone = new BoardState(width, height, KingPosition)
+            {
+                CurrentTurn = CurrentTurn
+            };
+
+            CopyPieces(playerPieces, clone.playerPieces);
+            CopyPieces(enemyPieces, clone.enemyPieces);
+
+            return clone;
+        }
+
+        private static void CopyPieces(Dictionary<Vector2Int, PieceSnapshot> source, Dictionary<Vector2Int, PieceSnapshot> destination)
+        {
+            foreach (var kvp in source)
+                destination[kvp.Key] = DeepCopySnapshot(kvp.Value);
+        }
+
+        // statusEffectsは参照型のListを持つため、浅いコピーのままだと複製側の変更が
+        // 本物のBoardStateにも及んでしまう。必ずディープコピーする。
+        private static PieceSnapshot DeepCopySnapshot(PieceSnapshot original)
+        {
+            var copy = original;
+            var effectsCopy = new List<ActiveStatusEffect>();
+            foreach (var e in original.statusEffects)
+            {
+                effectsCopy.Add(new ActiveStatusEffect
+                {
+                    type = e.type,
+                    remainingTurns = e.remainingTurns,
+                    magnitude = e.magnitude,
+                    appliedTurn = e.appliedTurn
+                });
+            }
+            copy.statusEffects = effectsCopy;
+            return copy;
+        }
+
         // ---- 書き換え（専用メソッド経由のみ） ----
         // actionsLeftなど、駒の一部フィールドのみを更新するための単純な書き込み。
         // ApplyMove/ApplyAttackのような意味のある操作とは区別する。
         public void SetPlayerPiece(Vector2Int pos, PieceSnapshot piece) => playerPieces[pos] = piece;
+
+        // ポーンの★2進化。ステータスの変化はここでのみ行う（BattleVisualSyncが
+        // 変化を検知してPieceData側・見た目へ反映する。PieceData.EvolveToStar2()を
+        // 直接呼んではならない。次のSyncAllでBoardState側の古い値に上書きされて消えてしまうため）。
+        public void EvolvePieceToStar2(int instanceId, float maxHpMultiplier, float attackMultiplier)
+        {
+            foreach (var pos in new List<Vector2Int>(playerPieces.Keys))
+            {
+                var piece = playerPieces[pos];
+                if (piece.instanceId != instanceId || piece.rank != 1) continue;
+
+                piece.rank = 2;
+                piece.maxHp = Mathf.RoundToInt(piece.maxHp * maxHpMultiplier);
+                piece.currentHp = piece.maxHp;
+                piece.attack = Mathf.RoundToInt(piece.attack * attackMultiplier);
+                playerPieces[pos] = piece;
+                return;
+            }
+        }
 
         // 配置フェーズでの配置取り消し（ドラッグ中の再配置）専用。ApplyDefeatと違い墓地には送らない。
         public void RemovePiece(bool isPlayerSide, Vector2Int pos) => GetDict(isPlayerSide).Remove(pos);
@@ -116,8 +176,17 @@ namespace Chebyss.Battle
             if (dict.TryGetValue(pos, out var piece))
             {
                 dict.Remove(pos);
-                graveyard.Add(new GraveyardEntry(piece.pieceType, CurrentTurn));
+                graveyard.Add(new GraveyardEntry(piece.instanceId, piece.pieceType, CurrentTurn));
             }
+        }
+
+        // ステップ3（経験値の蓄積）で、「このバトル中に倒れた駒は経験値を得られない」
+        // を判定するために使う。
+        public bool WasDefeatedThisBattle(int instanceId)
+        {
+            foreach (var entry in graveyard)
+                if (entry.instanceId == instanceId) return true;
+            return false;
         }
 
         public void ApplyAttack(bool targetIsPlayerSide, Vector2Int targetPos, AttackOutcome outcome)

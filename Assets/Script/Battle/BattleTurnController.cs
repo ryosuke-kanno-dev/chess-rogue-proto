@@ -19,15 +19,24 @@ namespace Chebyss.Battle
         private readonly IReadOnlyDictionary<PieceType, PieceMovementPatternSO> playerPatterns;
 
         public BattlePhase CurrentPhase { get; private set; } = BattlePhase.PlayerTurn;
+        public BattleDamageLog DamageLog { get; } = new BattleDamageLog();
+        public BattleExperienceLedger ExperienceLedger { get; } = new BattleExperienceLedger();
+
+        public EnemyTurnProcessor EnemyTurnProcessor { get; }
+
+        private readonly PawnGrowthRules growthRules;
 
         public BattleTurnController(
             BoardState board,
             EnemyTurnProcessor enemyTurnProcessor,
             IReadOnlyDictionary<PieceType, IMovementAttackRule> playerRules,
-            IReadOnlyDictionary<PieceType, PieceMovementPatternSO> playerPatterns)
+            IReadOnlyDictionary<PieceType, PieceMovementPatternSO> playerPatterns,
+            PawnGrowthRules growthRules)
         {
             this.board = board;
             this.enemyTurnProcessor = enemyTurnProcessor;
+            EnemyTurnProcessor = enemyTurnProcessor;
+            this.growthRules = growthRules;
             this.playerRules = playerRules;
             this.playerPatterns = playerPatterns;
             // 1ターン目はAdvanceTurnを呼ばない（tickするものがまだ何もないため）
@@ -76,10 +85,15 @@ namespace Chebyss.Battle
             outcome = rule.ExecuteAttack(attacker, target, board, pattern);
 
             board.ApplyAttack(false, targetPos, outcome);
+            DamageLog.Record(attacker.instanceId, target.instanceId, outcome.damage, outcome.targetDefeated);
             ConsumeAction(attackerPos);
 
-            if (outcome.targetDefeated && !board.GetAllEnemyPiecePositionsOrdered().Any())
-                CurrentPhase = BattlePhase.Victory;
+            if (outcome.targetDefeated)
+            {
+                AwardExperienceForKill(target);
+                if (!board.GetAllEnemyPiecePositionsOrdered().Any())
+                    CurrentPhase = BattlePhase.Victory;
+            }
 
             return ActionResult.Success;
         }
@@ -115,6 +129,52 @@ namespace Chebyss.Battle
 
             board.AdvanceTurn(); // ターン数+1・状態異常tick・プレイヤー駒のactionsLeftリセット
             CurrentPhase = BattlePhase.PlayerTurn;
+        }
+
+        // 撃破した敵のmaxHpを基準に、ダメージ貢献度で按分した経験値＋トドメボーナスを配る。
+        // 今は固定1戦しかなく「バトルをまたいで持ち越す」概念が無いため、
+        // 閾値に達した時点でその場で即座に進化させる（Phase3でラン構造ができたら、
+        // バトル終了時にboard.WasDefeatedThisBattle()で生存者だけに確定させる形へ見直す）。
+        private void AwardExperienceForKill(PieceSnapshot target)
+        {
+            int totalDamage = 0;
+            foreach (var r in DamageLog.Records)
+                if (r.targetInstanceId == target.instanceId) totalDamage += r.damage;
+            if (totalDamage <= 0) return;
+
+            int basePool = Mathf.RoundToInt(target.maxHp * growthRules.damageShareXpRate);
+            int killerBonus = Mathf.RoundToInt(target.maxHp * growthRules.killingBlowXpRate);
+
+            var contributors = new HashSet<int>();
+            foreach (var r in DamageLog.Records)
+            {
+                if (r.targetInstanceId != target.instanceId) continue;
+
+                int share = Mathf.RoundToInt(basePool * (r.damage / (float)totalDamage));
+                int bonus = r.wasKillingBlow ? killerBonus : 0;
+                ExperienceLedger.AddXp(r.attackerInstanceId, share + bonus);
+                contributors.Add(r.attackerInstanceId);
+
+                Debug.Log($"[Growth] instanceId={r.attackerInstanceId}: +{share}xp" +
+                    (bonus > 0 ? $" +{bonus}xp(トドメ)" : "") +
+                    $" → 累計{ExperienceLedger.GetXp(r.attackerInstanceId)}xp");
+            }
+
+            foreach (var instanceId in contributors)
+                TryEvolvePawn(instanceId);
+        }
+
+        private void TryEvolvePawn(int instanceId)
+        {
+            if (!board.TryFindPieceById(instanceId, out var piece, out var isPlayerSide, out _)) return;
+            if (!isPlayerSide || piece.pieceType != PieceType.Pawn || piece.rank != 1) return;
+            if (ExperienceLedger.GetXp(instanceId) < growthRules.xpToEvolveStar2) return;
+
+            Debug.Log($"[Growth] instanceId={instanceId}: ★2に進化！ " +
+                $"HP {piece.maxHp}→{Mathf.RoundToInt(piece.maxHp * growthRules.star2MaxHpMultiplier)}, " +
+                $"攻撃力 {piece.attack}→{Mathf.RoundToInt(piece.attack * growthRules.star2AttackMultiplier)}");
+
+            board.EvolvePieceToStar2(instanceId, growthRules.star2MaxHpMultiplier, growthRules.star2AttackMultiplier);
         }
 
         private void ConsumeAction(Vector2Int pos, bool consumeAll = false)

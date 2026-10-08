@@ -55,6 +55,17 @@ public class BattleVisualSync : MonoBehaviour
             {
                 pieceData.maxHp = snapshot.maxHp;
                 pieceData.currentHp = snapshot.currentHp;
+                pieceData.attack = snapshot.attack;
+
+                // rankの変化（進化）を検知したときだけ、旧EvolveToStar2()と同じ
+                // 見た目の拡大演出を行う。ステータス自体はBoardState側で既に
+                // 変化済みなので、ここではPieceData.EvolveToStar2()は呼ばない。
+                if (pieceData.rank != snapshot.rank)
+                {
+                    if (snapshot.rank > pieceData.rank)
+                        link.transform.localScale *= 1.15f;
+                    pieceData.rank = snapshot.rank;
+                }
             }
 
             var indicator = link.GetComponent<PieceStatusIndicator>();
@@ -64,6 +75,14 @@ public class BattleVisualSync : MonoBehaviour
                 indicator.Initialize(statusSettings);
             }
             indicator.SetEffects(snapshot.statusEffects);
+
+            // 敵駒にはactionsLeftという概念が無い（常に0）ため、プレイヤー駒にのみ適用する
+            if (snapshot.isPlayerSide)
+            {
+                var actionState = link.GetComponent<PieceActionStateIndicator>();
+                if (actionState == null) actionState = link.gameObject.AddComponent<PieceActionStateIndicator>();
+                actionState.SetActed(snapshot.actionsLeft <= 0);
+            }
         }
     }
 }

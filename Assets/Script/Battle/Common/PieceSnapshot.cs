@@ -36,5 +36,8 @@ namespace Chebyss.Battle
         // 敵駒の行動パターンを識別する。isPlayerSide=trueの駒では未使用。
         // PieceTypeはチェスの駒の見た目分類であり、ボス/スカウト等の敵種別とは別軸のため分離した。
         public EnemyArchetype enemyArchetype;
+
+        // ポーンの進化段階。1=★1（初期）、2=★2。プレイヤー駒のみ意味を持つ。
+        public int rank;
     }
 }

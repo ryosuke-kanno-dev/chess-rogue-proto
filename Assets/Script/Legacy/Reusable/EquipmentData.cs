@@ -24,7 +24,13 @@ public enum EquipmentStatType
   AttackSpeedPercent,  // 攻撃速度（攻撃間隔short化） %
   LifestealPercent,    // 吸血率 加算 %
   DoubleAttackChance,  // 連撃確率 %
-  Taunt                // 挑発（装備中は敵から優先的に狙われる）
+  Taunt,               // 挑発（装備中は敵から優先的に狙われる）
+
+  // 以下2つはChebyss.Battle側のPieceSnapshot.statModifiers専用（ターン制の新設計向け）。
+  // PieceDataには対応フィールドが無く、ApplyEquipmentBonus()では処理しない
+  // （CreateSnapshot()がequippedItemsを都度読んで反映する）。
+  BonusActions,       // ナイトの「疾風の足」等、1ターンの行動回数を増やす
+  DistanceBonusRate   // ナイトの距離ボーナス係数を増やす
 }
 
 // ==============================

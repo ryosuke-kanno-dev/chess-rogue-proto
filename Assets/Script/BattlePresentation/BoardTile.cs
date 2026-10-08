@@ -4,7 +4,10 @@ public enum HighlightType
 {
     None,
     Movable,
-    Attackable
+    Attackable,
+    EnemyIntentMove,
+    EnemyIntentAttack,
+    SelectedSelf
 }
 
 [RequireComponent(typeof(Renderer))]
@@ -13,6 +16,9 @@ public class BoardTile : MonoBehaviour
     [Header("ハイライト色")]
     public Color movableColor = new Color(0.3f, 0.5f, 1f);
     public Color attackableColor = new Color(1f, 0.3f, 0.3f);
+    public Color enemyIntentMoveColor = new Color(1f, 0.6f, 0.1f);
+    public Color enemyIntentAttackColor = new Color(0.7f, 0.1f, 0.7f);
+    public Color selectedSelfColor = new Color(1f, 1f, 1f);
 
     public Vector2Int GridPosition { get; private set; }
 
@@ -46,6 +52,15 @@ public class BoardTile : MonoBehaviour
                 break;
             case HighlightType.Attackable:
                 ren.material.color = Color.Lerp(originalColor, attackableColor, highlightBlendFactor);
+                break;
+            case HighlightType.EnemyIntentMove:
+                ren.material.color = Color.Lerp(originalColor, enemyIntentMoveColor, highlightBlendFactor);
+                break;
+            case HighlightType.EnemyIntentAttack:
+                ren.material.color = Color.Lerp(originalColor, enemyIntentAttackColor, highlightBlendFactor);
+                break;
+            case HighlightType.SelectedSelf:
+                ren.material.color = Color.Lerp(originalColor, selectedSelfColor, highlightBlendFactor);
                 break;
         }
     }

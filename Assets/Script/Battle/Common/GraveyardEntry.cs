@@ -6,11 +6,13 @@ namespace Chebyss.Battle
     /// </summary>
     public readonly struct GraveyardEntry
     {
+        public readonly int instanceId;
         public readonly PieceType pieceType;
         public readonly int turnDefeated;
 
-        public GraveyardEntry(PieceType pieceType, int turnDefeated)
+        public GraveyardEntry(int instanceId, PieceType pieceType, int turnDefeated)
         {
+            this.instanceId = instanceId;
             this.pieceType = pieceType;
             this.turnDefeated = turnDefeated;
         }

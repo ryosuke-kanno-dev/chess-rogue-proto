@@ -402,7 +402,6 @@ Steam Very Positive以上の評価獲得
 - RookLineRule.ExecuteAttackのノックバック距離のデフォルト値
 - BishopLineRule.ExecuteAttackのスロウmagnitudeのデフォルト値
 - ChainCollisionResultの詳細（Phase2）
-- ポーンの詳細設計（経験値数値・進化フロー・シナジー条件）
 - 敵AIのBoardState参照方法（EnemyMoveRuleの設計）※実装済み（`IEnemyMoveRule`・`EnemyTurnProcessor`、`Chebyss.Battle`名前空間）
 - 状態異常の減算タイミング再検討（敵がプレイヤー駒に状態異常を付与する設計を追加する際）
 - 弓兵（2ターンに1回前進）の実装（Phase2向け・`SlowAdvanceMovementPatternSO`/`SlowAdvanceMoveRule`）
@@ -412,14 +411,15 @@ Steam Very Positive以上の評価獲得
 - 敵の初期配置データ（フロア・呪縛レベルに応じた出現テーブル）。Phase1プロトタイプでは`BattleBootstrapper`内の固定データ（ボス1体・スカウト2体）で代用している
 - 敵の正式な見た目・PieceType的な分類（現状はPawnを仮の見た目として流用）
 - 装備効果（lifesteal・taunt・doubleAttack・attackInterval等）とEquipmentStatTypeを、Chebyss.Battle側のstatModifiers（BonusActions・DistanceBonusRate等）へどう対応させるか。Phase2アイテムシステム設計時に着手する
-- 配置完了ボタン・ターン終了ボタンのUI実装（現状はEnterキーで代用）
 - 見た目の同期（BoardStateの変化を3Dモデルの位置へ反映する仕組み）。現状PieceBoardLinkが論理座標のみを保持しており、モデル自体は移動後も見た目の位置が変わらない
 - 本格的な撃破演出（現状はGameObjectを即座に削除するのみ）
+- 敵（ボス＝直進型・スカウト＝追跡型とも）が、プレイヤー駒1体に隣接すると、それ以上何もできず停滞する点のバランス調整。敵はキング以外を攻撃しないため、ブロックする側には一切のコストが発生しない。現状は許容（Phase3でフロア・敵数を本格設計する際に、複数体が同時に迫る状況で再評価する）
 - ポーン複数体運用時の駒識別方式の再設計（この項目は`instanceId`導入により対応方針が決定：`PieceType`ではなく`instanceId`で管理する。ただし`PlacementController`は今回未対応で、現状も`PieceType`をキーとして使っている点は要フォローアップ）
 - プレイヤー駒とキング・敵のHP・攻撃力の数値スケール統一（現状、プレイヤー駒は旧設計の1000〜3000台、キング・敵は10〜30台で混在している）
 - CameraController.csからDebugGameManagerへの参照（UpdatePanLimitsFromBoard）の除去。DebugGameManager削除時に対応する
-- 敵の次の行動の予告表示（インテント表示）
 - 状態異常表示のアイコン化・日本語対応（現状は英語テキスト「STUN 1」「SLOW 2」と残りターン数のみ）
-- スロウ中の敵が「次のターンに動くのか動かないのか」の表示（残りターン数だけでは判別できない。インテント表示と合わせて対応する）
 - ボス等に対するスタンの耐性・連続付与の扱い（現状はナイトが毎ターン攻撃し続ければ、同一の敵を連続スタンできる）
+- 経験値の多戦をまたいだ持ち越し（Phase3のラン構造実装後。現状は1戦内で即時進化）
+- ポーンの進化先分岐（攻撃特化/守備特化）の選択UI。現状は分岐なしの一律★2進化
+- ポーン以外の駒（ナイト・ルーク・ビショップ）の経験値の使い道（現状は蓄積のみで利用先なし）
 
