@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Chebyss.Battle;
@@ -51,9 +52,15 @@ public class BattleBootstrapper : MonoBehaviour
 
     [Header("敵の見た目（味方の白い駒と見分けやすくするための色分け）")]
     [SerializeField] private Color enemyTintColor = new Color(0.55f, 0.15f, 0.15f);
+    [SerializeField] private Color retreaterTintColor = new Color(1f, 0.85f, 0.3f);
+
+    [Header("階ごとの敵生成（暫定）")]
+    [SerializeField] private EncounterGeneratorSettings encounterSettings = new EncounterGeneratorSettings();
 
     [Header("敵の初期配置（プロトタイプ用の固定データ。フロア/呪縛レベル未実装のための仮対応）")]
+    // 未使用（EncounterGeneratorが配置を決める）
     [SerializeField] private Vector2Int bossStartPosition = new Vector2Int(4, 7);
+    // 未使用（EncounterGeneratorが配置を決める）
     [SerializeField] private Vector2Int[] scoutStartPositions =
         { new Vector2Int(2, 7), new Vector2Int(6, 7) };
     [SerializeField] private int bossHp = 30;
@@ -61,11 +68,36 @@ public class BattleBootstrapper : MonoBehaviour
     [SerializeField] private int scoutHp = 8;
     [SerializeField] private int scoutAttack = 3;
 
+    [Header("装備画面のUI")]
+    [SerializeField] private TMP_FontAsset uiFontAsset;
+
+    [Header("感知レベル（-1 = 装備から算出 / 0〜3 = 確認用にそのレベルへ固定）")]
+    [Range(-1, 3)]
+    [SerializeField] private int senseLevelOverride = -1;
+
+    [Header("プレイヤー駒の基礎ステータス（新スケール）")]
+    [SerializeField] private int pawnHp = 10;
+    [SerializeField] private int pawnAttack = 3;
+    [SerializeField] private int knightHp = 12;
+    [SerializeField] private int knightAttack = 4;
+    [SerializeField] private int rookHp = 14;
+    [SerializeField] private int rookAttack = 4;
+    [SerializeField] private int bishopHp = 10;
+    [SerializeField] private int bishopAttack = 3;
+
     private GameObject knightInstance, rookInstance, bishopInstance, pawnInstance;
 
     public BoardState Board { get; private set; }
     public PlacementController Placement { get; private set; }
     public BattleTurnController TurnController { get; private set; }
+    public PlayerInventory Inventory { get; private set; }
+    public LoadoutPanelUI Loadout { get; private set; }
+
+    // 装備画面の盤面の簡易図が参照する、盤面の読み取り専用情報
+    public int BoardWidth => boardWidth;
+    public int BoardHeight => boardHeight;
+    public Vector2Int KingStartPosition => kingStartPosition;
+    public int DeploymentZoneHeight => deploymentZoneHeight;
     public BattleVisualSync VisualSync { get; private set; }
 
     void Awake()
@@ -84,13 +116,26 @@ public class BattleBootstrapper : MonoBehaviour
         VisualSync = gameObject.AddComponent<BattleVisualSync>();
         VisualSync.Initialize(boardGenerator, statusIndicatorSettings);
 
+        Inventory = RunState.Inventory; // 階をまたいで維持される所持品
+
+        var dropHover = gameObject.AddComponent<DropHoverController>();
+        dropHover.Initialize(this, boardGenerator);
+
+        if (uiFontAsset == null)
+            Debug.LogWarning("[BattleBootstrapper] Ui Font Asset がInspectorで未割り当てです。装備画面の日本語が表示されません。");
+
+        Loadout = gameObject.AddComponent<LoadoutPanelUI>();
+        Loadout.Initialize(this, uiFontAsset);
+
         var king = PieceSnapshotFactory.Create(
             PieceType.King, isPlayerSide: true, position: kingStartPosition,
             currentHp: kingHp, maxHp: kingHp, attack: 0, statModifiers: null, statusEffects: null);
         Board.PlacePiece(king);
         SpawnFixedStatVisual(kingPrefab, kingStartPosition, king.instanceId, kingHp);
 
-        PlaceFixedTestEnemies();
+        var encounter = RunState.NextEncounter ?? BuildEncounter(RunState.CurrentFloor);
+        RunState.NextEncounter = null;
+        PlaceEnemiesFromPlan(encounter);
 
         knightInstance = Instantiate(knightPrefab, knightStagingPosition, knightPrefab.transform.rotation);
         rookInstance   = Instantiate(rookPrefab, rookStagingPosition, rookPrefab.transform.rotation);
@@ -107,6 +152,19 @@ public class BattleBootstrapper : MonoBehaviour
         bishopData.SetupInitialStats();
         pawnData.SetupInitialStats();
 
+        // SetupInitialStats()は旧スケール（HP1000〜、ATK200〜）の値を入れるため、
+        // CreateSnapshot()の前に新スケールで上書きする（BoardStateへ渡る値の唯一の入口）。
+        ApplyPlayerBaseStats(knightData, knightHp, knightAttack);
+        ApplyPlayerBaseStats(rookData, rookHp, rookAttack);
+        ApplyPlayerBaseStats(bishopData, bishopHp, bishopAttack);
+        ApplyPlayerBaseStats(pawnData, pawnHp, pawnAttack);
+
+        // RunStateの装備を各駒に適用する（CreateSnapshotがequippedItemsを読んでBoardStateへ反映する）
+        ApplyRunEquipment(knightData, PieceType.Knight);
+        ApplyRunEquipment(rookData, PieceType.Rook);
+        ApplyRunEquipment(bishopData, PieceType.Bishop);
+        ApplyRunEquipment(pawnData, PieceType.Pawn);
+
         var knightSnapshot = knightData.CreateSnapshot(Vector2Int.zero);
         var rookSnapshot   = rookData.CreateSnapshot(Vector2Int.zero);
         var bishopSnapshot = bishopData.CreateSnapshot(Vector2Int.zero);
@@ -121,6 +179,81 @@ public class BattleBootstrapper : MonoBehaviour
         SetupDraggable(pawnInstance, pawnStagingPosition, pawnSnapshot.instanceId);
 
         HighlightDeploymentZone();
+    }
+
+    // プレイヤー駒のHP・攻撃力を新スケールで上書きする。attackIntervalなど他の項目は変更しない。
+    private void ApplyPlayerBaseStats(PieceData data, int hp, int attack)
+    {
+        data.maxHp = hp;
+        data.currentHp = hp;
+        data.attack = attack;
+    }
+
+    private void ApplyRunEquipment(PieceData data, PieceType type)
+    {
+        foreach (var item in RunState.GetEquipped(type))
+        {
+            if (item != null) data.EquipItem(item);
+        }
+    }
+
+    // ---- 装備画面（LoadoutPanelUI）向けの公開メンバ ----
+
+    public int GetPlayerBaseHp(PieceType type)
+    {
+        switch (type)
+        {
+            case PieceType.Knight: return knightHp;
+            case PieceType.Rook:   return rookHp;
+            case PieceType.Bishop: return bishopHp;
+            case PieceType.Pawn:   return pawnHp;
+            default:               return 0;
+        }
+    }
+
+    public int GetPlayerBaseAttack(PieceType type)
+    {
+        switch (type)
+        {
+            case PieceType.Knight: return knightAttack;
+            case PieceType.Rook:   return rookAttack;
+            case PieceType.Bishop: return bishopAttack;
+            case PieceType.Pawn:   return pawnAttack;
+            default:               return 0;
+        }
+    }
+
+    public float GetKnightBaseDistanceBonusRate()
+    {
+        return knightPattern != null ? knightPattern.distanceBonusRate : 0f;
+    }
+
+    // senseLevelOverrideが0以上ならその値に固定（確認用）。そうでなければ装備の「感知」の合計から算出する。
+    public int GetSenseLevel()
+    {
+        if (senseLevelOverride >= 0) return senseLevelOverride;
+        return Mathf.Clamp(RunState.GetTotalSenseValue(), 0, RunState.MaxSenseLevel);
+    }
+
+    public bool IsSenseLevelOverridden => senseLevelOverride >= 0;
+
+    // 敵種ごとの、キングへ隣接したときのダメージ。パターンが未割り当てなら-1。
+    public int GetEnemyKingDamage(EnemyArchetype archetype)
+    {
+        switch (archetype)
+        {
+            case EnemyArchetype.Boss:      return bossPattern != null ? bossPattern.kingDamage : -1;
+            case EnemyArchetype.Scout:     return scoutPattern != null ? scoutPattern.kingDamage : -1;
+            case EnemyArchetype.Retreater: return retreaterPattern != null ? retreaterPattern.kingDamage : -1;
+            default:                       return -1;
+        }
+    }
+
+    // 勝利後、次の階へ進む準備（階数を進め、次の敵計画を作る）
+    public void PrepareNextFloor()
+    {
+        RunState.CurrentFloor++;
+        RunState.NextEncounter = BuildEncounter(RunState.CurrentFloor);
     }
 
     // Awake内でInstantiateした駒のPieceData.Start()（SetupInitialStats）は
@@ -172,23 +305,45 @@ public class BattleBootstrapper : MonoBehaviour
         // 配置に成功した瞬間に行う。
     }
 
-    private void PlaceFixedTestEnemies()
+    // 階ごとの敵計画を生成する。seedはラン固定のRunSeedと階数から決まるため、
+    // 同じ階なら（装備画面での表示も実際の戦闘も）常に同じ構成になる。
+    private EncounterPlan BuildEncounter(int floor)
     {
-        var boss = PieceSnapshotFactory.Create(
-            PieceType.King, isPlayerSide: false, position: bossStartPosition,
-            currentHp: bossHp, maxHp: bossHp, attack: bossAttack, statModifiers: null, statusEffects: null,
-            enemyArchetype: EnemyArchetype.Boss);
-        Board.PlacePiece(boss);
-        SpawnFixedStatVisual(bossPrefab, bossStartPosition, boss.instanceId, bossHp, enemyTintColor);
+        var plan = EncounterGenerator.Generate(
+            floor, boardWidth, boardHeight, encounterSettings,
+            bossHp, bossAttack, scoutHp, scoutAttack,
+            allowRetreater: retreaterPattern != null,
+            seed: unchecked(RunState.RunSeed * 7919 + floor));
 
-        foreach (var pos in scoutStartPositions)
+        int bosses = 0, scouts = 0, retreaters = 0;
+        foreach (var enemy in plan.enemies)
         {
-            var scout = PieceSnapshotFactory.Create(
-                PieceType.King, isPlayerSide: false, position: pos,
-                currentHp: scoutHp, maxHp: scoutHp, attack: scoutAttack, statModifiers: null, statusEffects: null,
-                enemyArchetype: EnemyArchetype.Scout);
-            Board.PlacePiece(scout);
-            SpawnFixedStatVisual(pawnPrefab, pos, scout.instanceId, scoutHp, enemyTintColor);
+            switch (enemy.archetype)
+            {
+                case EnemyArchetype.Boss:      bosses++; break;
+                case EnemyArchetype.Scout:     scouts++; break;
+                case EnemyArchetype.Retreater: retreaters++; break;
+            }
+        }
+        Debug.Log($"[Encounter] {floor}F: ボス×{bosses} スカウト×{scouts} 逃げる敵×{retreaters}");
+
+        return plan;
+    }
+
+    private void PlaceEnemiesFromPlan(EncounterPlan plan)
+    {
+        foreach (var spawn in plan.enemies)
+        {
+            var enemy = PieceSnapshotFactory.Create(
+                PieceType.King, isPlayerSide: false, position: spawn.position,
+                currentHp: spawn.hp, maxHp: spawn.hp, attack: spawn.attack, statModifiers: null, statusEffects: null,
+                enemyArchetype: spawn.archetype);
+            Board.PlacePiece(enemy);
+
+            // 見た目：ボスはbossPrefab、それ以外（スカウト・逃げる敵）はpawnPrefabを仮の見た目として流用
+            var prefab = spawn.archetype == EnemyArchetype.Boss ? bossPrefab : pawnPrefab;
+            var tint = spawn.archetype == EnemyArchetype.Retreater ? retreaterTintColor : enemyTintColor;
+            SpawnFixedStatVisual(prefab, spawn.position, enemy.instanceId, spawn.hp, tint);
         }
     }
 
@@ -264,7 +419,10 @@ public class BattleBootstrapper : MonoBehaviour
         };
 
         var enemyTurnProcessor = new EnemyTurnProcessor(enemyRules, enemyPatterns);
-        TurnController = new BattleTurnController(Board, enemyTurnProcessor, playerRules, playerPatterns, pawnGrowthRules);
+        TurnController = new BattleTurnController(
+            Board, enemyTurnProcessor, playerRules, playerPatterns, pawnGrowthRules,
+            Inventory,
+            a => BattleEquipmentGenerator.GenerateRandomEquipment(DropRules.GetQualityTier(a)));
 
         intentDisplay.UpdateIntents(Board, TurnController.EnemyTurnProcessor);
     }

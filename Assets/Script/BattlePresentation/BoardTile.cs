@@ -7,7 +7,8 @@ public enum HighlightType
     Attackable,
     EnemyIntentMove,
     EnemyIntentAttack,
-    SelectedSelf
+    SelectedSelf,
+    MovableWithDrop
 }
 
 [RequireComponent(typeof(Renderer))]
@@ -19,6 +20,7 @@ public class BoardTile : MonoBehaviour
     public Color enemyIntentMoveColor = new Color(1f, 0.6f, 0.1f);
     public Color enemyIntentAttackColor = new Color(0.7f, 0.1f, 0.7f);
     public Color selectedSelfColor = new Color(1f, 1f, 1f);
+    public Color movableWithDropColor = new Color(1f, 0.85f, 0.2f);
 
     public Vector2Int GridPosition { get; private set; }
 
@@ -61,6 +63,9 @@ public class BoardTile : MonoBehaviour
                 break;
             case HighlightType.SelectedSelf:
                 ren.material.color = Color.Lerp(originalColor, selectedSelfColor, highlightBlendFactor);
+                break;
+            case HighlightType.MovableWithDrop:
+                ren.material.color = Color.Lerp(originalColor, movableWithDropColor, highlightBlendFactor);
                 break;
         }
     }

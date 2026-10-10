@@ -10,6 +10,7 @@ public class BattleVisualSync : MonoBehaviour
     private BoardGenerator boardGenerator;
     private StatusIndicatorSettings statusSettings;
     private readonly List<PieceBoardLink> trackedLinks = new();
+    private readonly Dictionary<int, BoardDropMarker> dropMarkers = new();
 
     public void Initialize(BoardGenerator generator, StatusIndicatorSettings settings)
     {
@@ -83,6 +84,42 @@ public class BattleVisualSync : MonoBehaviour
                 if (actionState == null) actionState = link.gameObject.AddComponent<PieceActionStateIndicator>();
                 actionState.SetActed(snapshot.actionsLeft <= 0);
             }
+        }
+
+        SyncDrops(board);
+    }
+
+    // BoardStateのドロップに合わせてマーカーを生成し、BoardStateから消えたドロップのマーカーを破棄する。
+    private void SyncDrops(BoardState board)
+    {
+        var current = board.GetAllDropsOrdered();
+        var aliveIds = new HashSet<int>();
+
+        foreach (var drop in current)
+        {
+            aliveIds.Add(drop.dropId);
+            if (dropMarkers.ContainsKey(drop.dropId)) continue;
+
+            var tile = boardGenerator.GetTile(drop.position);
+            if (tile == null) continue;
+
+            var markerObject = new GameObject($"DropMarker_{drop.dropId}");
+            var marker = markerObject.AddComponent<BoardDropMarker>();
+            marker.Initialize(drop.dropId, drop.item, tile.transform.position + Vector3.up * 0.45f);
+            dropMarkers[drop.dropId] = marker;
+        }
+
+        var staleIds = new List<int>();
+        foreach (var kvp in dropMarkers)
+        {
+            if (kvp.Value == null || !aliveIds.Contains(kvp.Key))
+                staleIds.Add(kvp.Key);
+        }
+
+        foreach (var id in staleIds)
+        {
+            if (dropMarkers[id] != null) Destroy(dropMarkers[id].gameObject);
+            dropMarkers.Remove(id);
         }
     }
 }

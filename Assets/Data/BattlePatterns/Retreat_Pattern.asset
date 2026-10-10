@@ -10,6 +10,6 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 40ab1e8e6fbf0eb46a62f30d1c29260e, type: 3}
-  m_Name: Retreater_Retreat_Pattern
+  m_Name: Retreat_Pattern
   m_EditorClassIdentifier: Assembly-CSharp::Chebyss.Battle.RetreatMovementPatternSO
   kingDamage: 0

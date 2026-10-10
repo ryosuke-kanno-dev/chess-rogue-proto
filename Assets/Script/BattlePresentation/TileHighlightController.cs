@@ -22,8 +22,12 @@ public class TileHighlightController : MonoBehaviour
         lastSelfPos = piecePos;
         boardGenerator.GetTile(piecePos)?.SetHighlight(HighlightType.SelectedSelf);
 
+        // ドロップがあるマスは別色で示す（停止すると拾得できることを事前に伝えるため）
         foreach (var pos in lastMovable)
-            boardGenerator.GetTile(pos)?.SetHighlight(HighlightType.Movable);
+        {
+            var type = turnController.HasDropAt(pos) ? HighlightType.MovableWithDrop : HighlightType.Movable;
+            boardGenerator.GetTile(pos)?.SetHighlight(type);
+        }
 
         foreach (var pos in lastAttackable)
             boardGenerator.GetTile(pos)?.SetHighlight(HighlightType.Attackable);

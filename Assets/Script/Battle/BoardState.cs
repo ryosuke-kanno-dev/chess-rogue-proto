@@ -22,6 +22,10 @@ namespace Chebyss.Battle
         private readonly Dictionary<Vector2Int, PieceSnapshot> enemyPieces = new();
         private readonly List<GraveyardEntry> graveyard = new();
 
+        // 盤面に落ちているドロップ。駒の移動・敵の進軍を妨げないため、IsOccupiedには含めない。
+        private readonly Dictionary<Vector2Int, DropEntry> drops = new();
+        private int nextDropId = 1;
+
         public Vector2Int KingPosition { get; private set; }
         public int CurrentTurn { get; private set; }
         public IReadOnlyList<GraveyardEntry> Graveyard => graveyard;
@@ -92,6 +96,8 @@ namespace Chebyss.Battle
 
         // インテント表示（敵の次の行動の予告）のために、実際の盤面に影響を与えず
         // 敵ターンの処理を試しに実行するための複製を作る。
+        // 注記：ドロップは複製しない。敵ターンのシミュレーション（EnemyTurnProcessor）は
+        // ドロップを一切参照しないため、複製する必要がない（複製側のドロップは常に空）。
         public BoardState Clone()
         {
             var clone = new BoardState(width, height, KingPosition)
@@ -129,6 +135,71 @@ namespace Chebyss.Battle
             }
             copy.statusEffects = effectsCopy;
             return copy;
+        }
+
+        // ---- ドロップ ----
+        // ドロップは駒の移動・敵の進軍を妨げない（IsOccupiedには含めない）。
+        // 拾得（取り出し）の許可判断は呼び出し元（BattleTurnController）の責務。
+        public bool HasDropAt(Vector2Int pos) => drops.ContainsKey(pos);
+
+        public bool TryGetDropAt(Vector2Int pos, out DropEntry entry) =>
+            drops.TryGetValue(pos, out entry);
+
+        public bool TryTakeDrop(Vector2Int pos, out DropEntry entry)
+        {
+            if (!drops.TryGetValue(pos, out entry)) return false;
+            drops.Remove(pos);
+            return true;
+        }
+
+        // 座標順（x→y）。呼び出し側が回収中にドロップを取り出しても安全なよう、コピーを返す。
+        public IReadOnlyList<DropEntry> GetAllDropsOrdered() =>
+            drops.Values.OrderBy(d => d.position.x).ThenBy(d => d.position.y).ToList();
+
+        // originが空きならそこに、そうでなければoriginに近い順（チェビシェフ距離。
+        // 同距離は x→y 順）で最寄りの空きマスにドロップを置く。空きが無ければfalse。
+        // 「空き」＝盤面内・駒がいない（IsOccupiedでない）・既にドロップが無い。
+        public bool TryPlaceDrop(EquipmentInstance item, Vector2Int origin, out DropEntry entry)
+        {
+            entry = default;
+            if (item == null) return false;
+
+            var dest = FindDropCell(origin);
+            if (!dest.HasValue) return false;
+
+            entry = new DropEntry(nextDropId++, item, dest.Value);
+            drops[dest.Value] = entry;
+            return true;
+        }
+
+        private bool IsFreeForDrop(Vector2Int pos) =>
+            IsInBounds(pos) && !IsOccupied(pos) && !drops.ContainsKey(pos);
+
+        private Vector2Int? FindDropCell(Vector2Int origin)
+        {
+            if (IsFreeForDrop(origin)) return origin;
+
+            Vector2Int? best = null;
+            int bestDistance = int.MaxValue;
+
+            // x→yの順に走査し、厳密に近い場合のみ更新することで、同距離ではx→y順で先のマスが残る
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    var pos = new Vector2Int(x, y);
+                    if (!IsFreeForDrop(pos)) continue;
+
+                    int distance = Mathf.Max(Mathf.Abs(pos.x - origin.x), Mathf.Abs(pos.y - origin.y));
+                    if (distance < bestDistance)
+                    {
+                        bestDistance = distance;
+                        best = pos;
+                    }
+                }
+            }
+
+            return best;
         }
 
         // ---- 書き換え（専用メソッド経由のみ） ----

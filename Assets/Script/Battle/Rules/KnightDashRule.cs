@@ -64,9 +64,9 @@ namespace Chebyss.Battle
 
             int tierUsed = DetermineTierUsed(attacker.position, target.position, knightPattern.maxLMultiplier);
 
-            float bonusRate = attacker.statModifiers.TryGetValue("DistanceBonusRate", out var itemRate)
-                ? itemRate
-                : knightPattern.distanceBonusRate;
+            // アイテム補正はSO基礎値への加算（置き換えではない）。補正が無ければ基礎値のみ。
+            float itemRate = attacker.statModifiers.TryGetValue("DistanceBonusRate", out var rate) ? rate : 0f;
+            float bonusRate = knightPattern.distanceBonusRate + itemRate;
 
             // TODO: 距離ボーナスの正式な計算式は未確定（design doc「未決定事項」参照）。
             // 現状は 基礎攻撃力 × (1 + bonusRate × tierUsed) の仮実装。

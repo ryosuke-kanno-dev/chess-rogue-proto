@@ -153,8 +153,14 @@ public class BattleInputController : MonoBehaviour
         pursuingKnightPos = knightPos;
         pursuitCandidates = new List<Vector2Int>(candidates);
 
+        var turnController = bootstrapper.TurnController;
         foreach (var pos in pursuitCandidates)
-            boardGenerator.GetTile(pos)?.SetHighlight(HighlightType.Movable);
+        {
+            var type = turnController != null && turnController.HasDropAt(pos)
+                ? HighlightType.MovableWithDrop
+                : HighlightType.Movable;
+            boardGenerator.GetTile(pos)?.SetHighlight(type);
+        }
     }
 
     private void HandlePursuitClick(Vector2Int cell, BattleTurnController turnController)

@@ -30,7 +30,11 @@ public enum EquipmentStatType
   // PieceDataには対応フィールドが無く、ApplyEquipmentBonus()では処理しない
   // （CreateSnapshot()がequippedItemsを都度読んで反映する）。
   BonusActions,       // ナイトの「疾風の足」等、1ターンの行動回数を増やす
-  DistanceBonusRate   // ナイトの距離ボーナス係数を増やす
+  DistanceBonusRate,  // ナイトの距離ボーナス係数を増やす
+
+  // Chebyss.Battle側のRunState専用（次の階の情報開示レベルを上げる）。駒の能力には影響しない。
+  // PieceData.ApplyEquipmentBonus()・BuildBattleStatModifiers()は未知の種類を無視する。
+  SenseLevel
 }
 
 // ==============================

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -24,19 +25,27 @@ namespace Chebyss.Battle
 
         public EnemyTurnProcessor EnemyTurnProcessor { get; }
 
+        public BattleLootLedger LootLedger { get; } = new BattleLootLedger();
+
         private readonly PawnGrowthRules growthRules;
+        private readonly PlayerInventory inventory;
+        private readonly Func<EnemyArchetype, EquipmentInstance> dropGenerator;
 
         public BattleTurnController(
             BoardState board,
             EnemyTurnProcessor enemyTurnProcessor,
             IReadOnlyDictionary<PieceType, IMovementAttackRule> playerRules,
             IReadOnlyDictionary<PieceType, PieceMovementPatternSO> playerPatterns,
-            PawnGrowthRules growthRules)
+            PawnGrowthRules growthRules,
+            PlayerInventory inventory = null,
+            Func<EnemyArchetype, EquipmentInstance> dropGenerator = null)
         {
             this.board = board;
             this.enemyTurnProcessor = enemyTurnProcessor;
             EnemyTurnProcessor = enemyTurnProcessor;
             this.growthRules = growthRules;
+            this.inventory = inventory;
+            this.dropGenerator = dropGenerator;
             this.playerRules = playerRules;
             this.playerPatterns = playerPatterns;
             // 1ターン目はAdvanceTurnを呼ばない（tickするものがまだ何もないため）
@@ -56,6 +65,10 @@ namespace Chebyss.Battle
             return rule.GetAttackableTiles(piece, board, pattern);
         }
 
+        public bool HasDropAt(Vector2Int pos) => board.HasDropAt(pos);
+
+        public bool TryGetDropAt(Vector2Int pos, out DropEntry drop) => board.TryGetDropAt(pos, out drop);
+
         public ActionResult ExecuteMove(Vector2Int from, Vector2Int to)
         {
             if (CurrentPhase != BattlePhase.PlayerTurn) return ActionResult.WrongPhase;
@@ -65,6 +78,7 @@ namespace Chebyss.Battle
 
             board.ApplyMove(true, from, to);
             ConsumeAction(to);
+            TryPickupAt(to); // 停止したマスのみ拾得（通過では拾わない）。行動は消費しない
             return ActionResult.Success;
         }
 
@@ -91,8 +105,12 @@ namespace Chebyss.Battle
             if (outcome.targetDefeated)
             {
                 AwardExperienceForKill(target);
+                SpawnDropForDefeatedEnemy(target, targetPos);
                 if (!board.GetAllEnemyPiecePositionsOrdered().Any())
+                {
                     CurrentPhase = BattlePhase.Victory;
+                    CollectAllRemainingDrops(); // 勝利時のみ、取り残したドロップを自動回収する
+                }
             }
 
             return ActionResult.Success;
@@ -103,6 +121,7 @@ namespace Chebyss.Battle
         {
             if (CurrentPhase != BattlePhase.PlayerTurn) return ActionResult.WrongPhase;
             board.ApplyMove(true, knightPos, destination);
+            TryPickupAt(destination); // 撃破マスへの追撃移動で、そのドロップを即座に拾得できる
             return ActionResult.Success;
         }
 
@@ -175,6 +194,44 @@ namespace Chebyss.Battle
                 $"攻撃力 {piece.attack}→{Mathf.RoundToInt(piece.attack * growthRules.star2AttackMultiplier)}");
 
             board.EvolvePieceToStar2(instanceId, growthRules.star2MaxHpMultiplier, growthRules.star2AttackMultiplier);
+        }
+
+        // 撃破した敵のドロップを撃破マスに置く。置ける空きマスが無い場合は、
+        // 盤面に置かず所持品へ直接追加する（ドロップ保証）。dropGeneratorがnullなら何もしない。
+        private void SpawnDropForDefeatedEnemy(PieceSnapshot target, Vector2Int pos)
+        {
+            if (dropGenerator == null) return;
+
+            var item = dropGenerator(target.enemyArchetype);
+            if (item == null) return;
+
+            if (!board.TryPlaceDrop(item, pos, out _))
+                CollectItem(item);
+        }
+
+        // 指定マスにドロップがあれば取り出して獲得する。拾得するのはプレイヤー駒の停止時のみ（敵は拾得しない）。
+        private void TryPickupAt(Vector2Int pos)
+        {
+            if (!board.TryTakeDrop(pos, out var drop)) return;
+            CollectItem(drop.item);
+        }
+
+        private void CollectAllRemainingDrops()
+        {
+            foreach (var drop in board.GetAllDropsOrdered())
+            {
+                if (board.TryTakeDrop(drop.position, out var taken))
+                    CollectItem(taken.item);
+            }
+        }
+
+        private void CollectItem(EquipmentInstance item)
+        {
+            if (item == null) return;
+
+            inventory?.Add(item);
+            LootLedger.Add(item);
+            Debug.Log($"[Loot] 獲得: [{item.rarity}] {item.itemName}");
         }
 
         private void ConsumeAction(Vector2Int pos, bool consumeAll = false)
