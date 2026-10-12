@@ -75,6 +75,12 @@ public class BattleBootstrapper : MonoBehaviour
     [Range(-1, 3)]
     [SerializeField] private int senseLevelOverride = -1;
 
+    [Header("標準配置（最初のバトルと、記憶のない駒の配置）")]
+    [SerializeField] private Vector2Int pawnStandardPosition = new Vector2Int(4, 2);
+    [SerializeField] private Vector2Int knightStandardPosition = new Vector2Int(2, 1);
+    [SerializeField] private Vector2Int bishopStandardPosition = new Vector2Int(3, 1);
+    [SerializeField] private Vector2Int rookStandardPosition = new Vector2Int(5, 1);
+
     [Header("プレイヤー駒の基礎ステータス（新スケール）")]
     [SerializeField] private int pawnHp = 10;
     [SerializeField] private int pawnAttack = 3;
@@ -85,13 +91,68 @@ public class BattleBootstrapper : MonoBehaviour
     [SerializeField] private int bishopHp = 10;
     [SerializeField] private int bishopAttack = 3;
 
-    private GameObject knightInstance, rookInstance, bishopInstance, pawnInstance;
+    // 駒種ごとの生成情報（プレハブ・待機位置・基礎HP・基礎攻撃力）
+    private struct PlayerPieceSpec
+    {
+        public PieceType type;
+        public GameObject prefab;
+        public Vector3 stagingPosition;
+        public int hp;
+        public int attack;
+    }
+
+    private readonly List<GameObject> playerPieceInstances = new();
+
+    private EncounterPlan currentEncounter;
+
+    // 駒種ごとのルール・パターンの対応表（配置プレビューとバトルの両方で使う）
+    private Dictionary<PieceType, IMovementAttackRule> playerRules;
+    private Dictionary<PieceType, PieceMovementPatternSO> playerPatterns;
+
+    // 名簿の駒種ごとのスナップショット（配置プレビューが、未配置の駒の情報として使う）
+    private readonly Dictionary<PieceType, PieceSnapshot> rosterSnapshots = new();
+
+    private PlacementRangePreview rangePreview;
+    private PlacementInputController placementInput;
+
+    // 名簿の駒種ごとのPlacementDraggable（クリック配置が配置先の駒を引くために使う）
+    private readonly Dictionary<PieceType, PlacementDraggable> draggablesByType = new();
+    private bool victoryCommitted;
+
+    // 名簿に入れた駒のinstanceIdと駒種の対応（バトル後に「倒れた駒」を判定するために保持する）
+    private readonly List<(int instanceId, PieceType type)> rosterEntries = new();
+    private readonly List<PieceType> rosterTypes = new();
 
     public BoardState Board { get; private set; }
     public PlacementController Placement { get; private set; }
     public BattleTurnController TurnController { get; private set; }
     public PlayerInventory Inventory { get; private set; }
     public LoadoutPanelUI Loadout { get; private set; }
+    public RunEndPanelUI RunEnd { get; private set; }
+
+    // 配置フェーズ中はtrue、StartBattlePhaseの後はfalse
+    public bool IsPlacementPhase { get; private set; } = true;
+
+    public PlacementInputController PlacementInput => placementInput;
+    public KeyboardCursorController KeyboardCursor { get; private set; }
+
+    // 名簿の駒種（生成した順。墓地の駒は含まれない）
+    public IReadOnlyList<PieceType> RosterTypes => rosterTypes;
+
+    // 名簿の駒のPlacementDraggable（配置フェーズ中のみ有効）
+    public bool TryGetDraggable(PieceType type, out PlacementDraggable draggable)
+    {
+        return draggablesByType.TryGetValue(type, out draggable) && draggable != null;
+    }
+
+    // 階数表示・ボス階判定・ランクリア判定用
+    public int TotalFloors => encounterSettings.finalFloor;
+    public bool IsFinalFloor => RunState.CurrentFloor >= encounterSettings.finalFloor;
+    public int BossFloorInterval => encounterSettings.bossFloorInterval;
+    public int FinalFloor => encounterSettings.finalFloor;
+
+    // 直近のPrepareNextFloorで確定した、このバトルで倒れた駒（無ければ空）
+    public IReadOnlyList<PieceType> LastCasualties { get; private set; } = new List<PieceType>();
 
     // 装備画面の盤面の簡易図が参照する、盤面の読み取り専用情報
     public int BoardWidth => boardWidth;
@@ -121,11 +182,30 @@ public class BattleBootstrapper : MonoBehaviour
         var dropHover = gameObject.AddComponent<DropHoverController>();
         dropHover.Initialize(this, boardGenerator);
 
+        BuildPlayerRuleTables();
+        rangePreview = gameObject.AddComponent<PlacementRangePreview>();
+        rangePreview.Initialize(this, boardGenerator);
+
+        placementInput = gameObject.AddComponent<PlacementInputController>();
+        placementInput.Initialize(this, boardGenerator, rangePreview);
+
+        KeyboardCursor = gameObject.AddComponent<KeyboardCursorController>();
+        KeyboardCursor.Initialize(this, boardGenerator, rangePreview);
+
         if (uiFontAsset == null)
             Debug.LogWarning("[BattleBootstrapper] Ui Font Asset がInspectorで未割り当てです。装備画面の日本語が表示されません。");
 
         Loadout = gameObject.AddComponent<LoadoutPanelUI>();
         Loadout.Initialize(this, uiFontAsset);
+
+        RunEnd = gameObject.AddComponent<RunEndPanelUI>();
+        RunEnd.Initialize(this, uiFontAsset);
+
+        var runHud = gameObject.AddComponent<RunHudUI>();
+        runHud.Initialize(this, uiFontAsset);
+
+        var controls = gameObject.AddComponent<BattleControlsUI>();
+        controls.Initialize(this, uiFontAsset);
 
         var king = PieceSnapshotFactory.Create(
             PieceType.King, isPlayerSide: true, position: kingStartPosition,
@@ -133,55 +213,66 @@ public class BattleBootstrapper : MonoBehaviour
         Board.PlacePiece(king);
         SpawnFixedStatVisual(kingPrefab, kingStartPosition, king.instanceId, kingHp);
 
-        var encounter = RunState.NextEncounter ?? BuildEncounter(RunState.CurrentFloor);
+        currentEncounter = RunState.NextEncounter ?? BuildEncounter(RunState.CurrentFloor);
         RunState.NextEncounter = null;
-        PlaceEnemiesFromPlan(encounter);
+        PlaceEnemiesFromPlan(currentEncounter);
 
-        knightInstance = Instantiate(knightPrefab, knightStagingPosition, knightPrefab.transform.rotation);
-        rookInstance   = Instantiate(rookPrefab, rookStagingPosition, rookPrefab.transform.rotation);
-        bishopInstance = Instantiate(bishopPrefab, bishopStagingPosition, bishopPrefab.transform.rotation);
-        pawnInstance   = Instantiate(playerPawnPrefab, pawnStagingPosition, playerPawnPrefab.transform.rotation);
+        var roster = new List<PieceSnapshot>();
+        var draggableSetups = new List<(GameObject instance, Vector3 staging, int instanceId)>();
 
-        var knightData = knightInstance.GetComponentInChildren<PieceData>(true);
-        var rookData   = rookInstance.GetComponentInChildren<PieceData>(true);
-        var bishopData = bishopInstance.GetComponentInChildren<PieceData>(true);
-        var pawnData   = pawnInstance.GetComponentInChildren<PieceData>(true);
+        foreach (var spec in BuildPlayerPieceSpecs())
+        {
+            // 墓地の駒は生成せず、名簿にもドラッグ設定にも含めない
+            if (RunState.IsPieceDead(spec.type)) continue;
 
-        knightData.SetupInitialStats();
-        rookData.SetupInitialStats();
-        bishopData.SetupInitialStats();
-        pawnData.SetupInitialStats();
+            var instance = Instantiate(spec.prefab, spec.stagingPosition, spec.prefab.transform.rotation);
+            var data = instance.GetComponentInChildren<PieceData>(true);
 
-        // SetupInitialStats()は旧スケール（HP1000〜、ATK200〜）の値を入れるため、
-        // CreateSnapshot()の前に新スケールで上書きする（BoardStateへ渡る値の唯一の入口）。
-        ApplyPlayerBaseStats(knightData, knightHp, knightAttack);
-        ApplyPlayerBaseStats(rookData, rookHp, rookAttack);
-        ApplyPlayerBaseStats(bishopData, bishopHp, bishopAttack);
-        ApplyPlayerBaseStats(pawnData, pawnHp, pawnAttack);
+            data.SetupInitialStats();
 
-        // RunStateの装備を各駒に適用する（CreateSnapshotがequippedItemsを読んでBoardStateへ反映する）
-        ApplyRunEquipment(knightData, PieceType.Knight);
-        ApplyRunEquipment(rookData, PieceType.Rook);
-        ApplyRunEquipment(bishopData, PieceType.Bishop);
-        ApplyRunEquipment(pawnData, PieceType.Pawn);
+            // SetupInitialStats()は旧スケール（HP1000〜、ATK200〜）の値を入れるため、
+            // CreateSnapshot()の前に新スケールで上書きする（BoardStateへ渡る値の唯一の入口）。
+            // HPは毎バトル全回復（基礎値と装備からスナップショットが作られる）。
+            ApplyPlayerBaseStats(data, spec.hp, spec.attack);
 
-        var knightSnapshot = knightData.CreateSnapshot(Vector2Int.zero);
-        var rookSnapshot   = rookData.CreateSnapshot(Vector2Int.zero);
-        var bishopSnapshot = bishopData.CreateSnapshot(Vector2Int.zero);
-        var pawnSnapshot   = pawnData.CreateSnapshot(Vector2Int.zero);
+            // RunStateの装備を適用する（CreateSnapshotがequippedItemsを読んでBoardStateへ反映する）
+            ApplyRunEquipment(data, spec.type);
 
-        var roster = new List<PieceSnapshot> { knightSnapshot, rookSnapshot, bishopSnapshot, pawnSnapshot };
+            var snapshot = data.CreateSnapshot(Vector2Int.zero);
+            roster.Add(snapshot);
+            rosterEntries.Add((snapshot.instanceId, spec.type));
+            rosterTypes.Add(spec.type);
+            rosterSnapshots[spec.type] = snapshot;
+            playerPieceInstances.Add(instance);
+            draggableSetups.Add((instance, spec.stagingPosition, snapshot.instanceId));
+        }
+
+        // 配置完了条件は名簿の駒数に追従する（駒が減っても配置を完了してバトルを開始できる）
         Placement = new PlacementController(Board, roster, deploymentZoneHeight);
 
-        SetupDraggable(knightInstance, knightStagingPosition, knightSnapshot.instanceId);
-        SetupDraggable(rookInstance, rookStagingPosition, rookSnapshot.instanceId);
-        SetupDraggable(bishopInstance, bishopStagingPosition, bishopSnapshot.instanceId);
-        SetupDraggable(pawnInstance, pawnStagingPosition, pawnSnapshot.instanceId);
+        for (int i = 0; i < draggableSetups.Count; i++)
+        {
+            var setup = draggableSetups[i];
+            draggablesByType[rosterEntries[i].type] = SetupDraggable(setup.instance, setup.staging, setup.instanceId);
+        }
+
+        AutoPlaceRoster(draggableSetups);
 
         HighlightDeploymentZone();
     }
 
     // プレイヤー駒のHP・攻撃力を新スケールで上書きする。attackIntervalなど他の項目は変更しない。
+    private List<PlayerPieceSpec> BuildPlayerPieceSpecs()
+    {
+        return new List<PlayerPieceSpec>
+        {
+            new PlayerPieceSpec { type = PieceType.Knight, prefab = knightPrefab,     stagingPosition = knightStagingPosition, hp = knightHp, attack = knightAttack },
+            new PlayerPieceSpec { type = PieceType.Rook,   prefab = rookPrefab,       stagingPosition = rookStagingPosition,   hp = rookHp,   attack = rookAttack },
+            new PlayerPieceSpec { type = PieceType.Bishop, prefab = bishopPrefab,     stagingPosition = bishopStagingPosition, hp = bishopHp, attack = bishopAttack },
+            new PlayerPieceSpec { type = PieceType.Pawn,   prefab = playerPawnPrefab, stagingPosition = pawnStagingPosition,   hp = pawnHp,   attack = pawnAttack },
+        };
+    }
+
     private void ApplyPlayerBaseStats(PieceData data, int hp, int attack)
     {
         data.maxHp = hp;
@@ -250,6 +341,30 @@ public class BattleBootstrapper : MonoBehaviour
     }
 
     // 勝利後、次の階へ進む準備（階数を進め、次の敵計画を作る）
+    // 勝利の確定（このバトルで1回だけ実行される）：
+    // 倒れた駒を確定し（装備は所持品へ戻る）、ラン統計に今回の勝利を記録する。
+    public void CommitVictory()
+    {
+        if (victoryCommitted) return;
+        victoryCommitted = true;
+
+        // このバトルで倒れた駒を確定する（盤面に存在しない名簿の駒）。装備は所持品へ戻る。
+        var casualties = new List<PieceType>();
+        foreach (var entry in rosterEntries)
+        {
+            if (Board.TryFindPieceById(entry.instanceId, out _, out _, out _)) continue;
+
+            casualties.Add(entry.type);
+            RunState.MarkPieceDead(entry.type);
+        }
+        LastCasualties = casualties;
+
+        int enemyCount = currentEncounter != null ? currentEncounter.enemies.Count : 0;
+        int itemCount = TurnController != null ? TurnController.LootLedger.Collected.Count : 0;
+        RunState.RecordVictory(enemyCount, itemCount, casualties.Count);
+    }
+
+    // 次の階へ進む準備（階数を進め、次の敵計画を作る）。倒れた駒の確定はCommitVictoryで行う。
     public void PrepareNextFloor()
     {
         RunState.CurrentFloor++;
@@ -293,16 +408,133 @@ public class BattleBootstrapper : MonoBehaviour
         VisualSync.Register(link);
     }
 
-    private void SetupDraggable(GameObject pieceInstance, Vector3 stagingPosition, int instanceId)
+    // 駒種ごとのルール・パターンの対応表。ルールは状態を持たないため、配置フェーズから使い回せる。
+    private void BuildPlayerRuleTables()
+    {
+        playerRules = new Dictionary<PieceType, IMovementAttackRule>
+        {
+            { PieceType.Knight, new KnightDashRule() },
+            { PieceType.Rook,   new RookLineRule() },
+            { PieceType.Bishop, new BishopLineRule() },
+            { PieceType.Pawn,   new PawnAdvanceRule() },
+        };
+        playerPatterns = new Dictionary<PieceType, PieceMovementPatternSO>
+        {
+            { PieceType.Knight, knightPattern },
+            { PieceType.Rook,   rookPattern },
+            { PieceType.Bishop, bishopPattern },
+            { PieceType.Pawn,   pawnPattern },
+        };
+    }
+
+    // 配置プレビュー用：未配置の駒でも範囲を計算できるよう、名簿のスナップショットとルールを返す
+    public bool TryGetPlacementPreviewData(
+        PieceType type, out PieceSnapshot snapshot, out IMovementAttackRule rule, out PieceMovementPatternSO pattern)
+    {
+        rule = null;
+        pattern = null;
+        if (!rosterSnapshots.TryGetValue(type, out snapshot)) return false;
+
+        return playerRules.TryGetValue(type, out rule) && playerPatterns.TryGetValue(type, out pattern);
+    }
+
+    // ---- 前回配置の記憶と自動配置 ----
+
+    private Vector2Int GetStandardPlacement(PieceType type)
+    {
+        switch (type)
+        {
+            case PieceType.Pawn:   return pawnStandardPosition;
+            case PieceType.Knight: return knightStandardPosition;
+            case PieceType.Bishop: return bishopStandardPosition;
+            case PieceType.Rook:   return rookStandardPosition;
+            default:               return kingStartPosition + Vector2Int.up;
+        }
+    }
+
+    // 名簿の各駒を自動配置する。前回の配置（なければ標準配置）が使えなければ、最寄りの空きマスにする。
+    // それでも置けなければ未配置のまま（プレイヤーが手で置く）。
+    private void AutoPlaceRoster(List<(GameObject instance, Vector3 staging, int instanceId)> setups)
+    {
+        for (int i = 0; i < setups.Count; i++)
+        {
+            var type = rosterEntries[i].type;
+            var draggable = setups[i].instance.GetComponent<PlacementDraggable>();
+            if (draggable == null) continue;
+
+            var desired = RunState.TryGetLastPlacement(type, out var last) ? last : GetStandardPlacement(type);
+
+            Vector2Int cell;
+            if (IsFreeDeploymentCell(desired))
+            {
+                cell = desired;
+            }
+            else
+            {
+                var nearest = FindNearestFreeDeploymentCell(desired);
+                if (!nearest.HasValue) continue;
+                cell = nearest.Value;
+            }
+
+            draggable.PlaceAt(cell);
+        }
+    }
+
+    // 盤面内・自陣エリア内で、他の駒や敵がいないマス
+    private bool IsFreeDeploymentCell(Vector2Int pos)
+    {
+        return Placement.IsInDeploymentZone(pos) && !Board.IsOccupied(pos);
+    }
+
+    // 自陣エリア内の最寄りの空きマス（チェビシェフ距離。同距離ならx→y順）
+    private Vector2Int? FindNearestFreeDeploymentCell(Vector2Int origin)
+    {
+        Vector2Int? best = null;
+        int bestDistance = int.MaxValue;
+
+        for (int x = 0; x < boardWidth; x++)
+        {
+            for (int y = 0; y < deploymentZoneHeight; y++)
+            {
+                var pos = new Vector2Int(x, y);
+                if (!IsFreeDeploymentCell(pos)) continue;
+
+                int distance = Mathf.Max(Mathf.Abs(pos.x - origin.x), Mathf.Abs(pos.y - origin.y));
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = pos;
+                }
+            }
+        }
+
+        return best;
+    }
+
+    // 配置完了時に、盤面上の味方駒（キング除く）の駒種とマスを記憶する
+    private void SavePlacementToRunState()
+    {
+        var placement = new List<KeyValuePair<PieceType, Vector2Int>>();
+        foreach (var pos in Board.GetAllPlayerPiecePositionsOrdered())
+        {
+            if (Board.TryGetPlayerPiece(pos, out var piece) && piece.pieceType != PieceType.King)
+                placement.Add(new KeyValuePair<PieceType, Vector2Int>(piece.pieceType, pos));
+        }
+        RunState.SavePlacement(placement);
+    }
+
+    private PlacementDraggable SetupDraggable(GameObject pieceInstance, Vector3 stagingPosition, int instanceId)
     {
         var draggable = pieceInstance.AddComponent<PlacementDraggable>();
-        draggable.Initialize(Placement, boardGenerator, VisualSync, stagingPosition);
+        draggable.Initialize(Placement, boardGenerator, VisualSync, stagingPosition, rangePreview, placementInput);
 
         var link = pieceInstance.GetComponent<PieceBoardLink>();
         link.InstanceId = instanceId;
         // ここではまだRegisterしない（配置完了前のためBoardState上に存在せず、
         // SyncAllに「撃破された」と誤認されてしまう）。実際の登録はPlacementDraggable側で、
         // 配置に成功した瞬間に行う。
+
+        return draggable;
     }
 
     // 階ごとの敵計画を生成する。seedはラン固定のRunSeedと階数から決まるため、
@@ -347,12 +579,6 @@ public class BattleBootstrapper : MonoBehaviour
         }
     }
 
-    void Update()
-    {
-        if (Keyboard.current != null && Keyboard.current.enterKey.wasPressedThisFrame)
-            AdvancePhase();
-    }
-
     // 配置完了→バトル開始、またはプレイヤーターン→ターン終了を状況に応じて実行する。
     // Enterキー（ショートカット）と、新設のBattlePhaseActionButtonの両方から
     // 同じこのメソッド経由で呼び出すことで、処理が2箇所に分かれないようにする。
@@ -383,27 +609,17 @@ public class BattleBootstrapper : MonoBehaviour
     {
         if (!Placement.IsComplete) return;
 
+        // 配置フェーズの終了：プレビューを先に消してから自陣エリアの強調を消す
+        // （プレビューが上書き前の強調を復元してしまわないようにするため）
+        IsPlacementPhase = false;
+        placementInput.Deselect(); // 選択中の駒の上下動・プレビューを止める
+        rangePreview.Clear();
+        SavePlacementToRunState();
+
         ClearDeploymentZoneHighlight();
 
-        DisableDraggable(knightInstance);
-        DisableDraggable(rookInstance);
-        DisableDraggable(bishopInstance);
-        DisableDraggable(pawnInstance);
-
-        var playerRules = new Dictionary<PieceType, IMovementAttackRule>
-        {
-            { PieceType.Knight, new KnightDashRule() },
-            { PieceType.Rook,   new RookLineRule() },
-            { PieceType.Bishop, new BishopLineRule() },
-            { PieceType.Pawn,   new PawnAdvanceRule() },
-        };
-        var playerPatterns = new Dictionary<PieceType, PieceMovementPatternSO>
-        {
-            { PieceType.Knight, knightPattern },
-            { PieceType.Rook,   rookPattern },
-            { PieceType.Bishop, bishopPattern },
-            { PieceType.Pawn,   pawnPattern },
-        };
+        foreach (var instance in playerPieceInstances)
+            DisableDraggable(instance);
 
         var enemyRules = new Dictionary<EnemyArchetype, IEnemyMoveRule>
         {

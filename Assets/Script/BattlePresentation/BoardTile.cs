@@ -8,7 +8,10 @@ public enum HighlightType
     EnemyIntentMove,
     EnemyIntentAttack,
     SelectedSelf,
-    MovableWithDrop
+    MovableWithDrop,
+    EnemyIntentTarget,
+    PreviewMovable,
+    PreviewAttackable
 }
 
 [RequireComponent(typeof(Renderer))]
@@ -21,8 +24,14 @@ public class BoardTile : MonoBehaviour
     public Color enemyIntentAttackColor = new Color(0.7f, 0.1f, 0.7f);
     public Color selectedSelfColor = new Color(1f, 1f, 1f);
     public Color movableWithDropColor = new Color(1f, 0.85f, 0.2f);
+    public Color enemyIntentTargetColor = new Color(1f, 0.5f, 0.1f);
+    public Color previewMovableColor = new Color(0.45f, 0.75f, 1f);
+    public Color previewAttackableColor = new Color(1f, 0.5f, 0.5f);
 
     public Vector2Int GridPosition { get; private set; }
+
+    // 現在かかっているハイライト（配置プレビューが、上書き前の状態へ戻すために参照する）
+    public HighlightType CurrentHighlight { get; private set; }
 
     [Header("ハイライトの混ぜ具合（0=元の色のまま、1=ハイライト色そのまま）")]
     [Range(0f, 1f)]
@@ -43,6 +52,7 @@ public class BoardTile : MonoBehaviour
 
     public void SetHighlight(HighlightType type)
     {
+        CurrentHighlight = type;
         switch (type)
         {
             case HighlightType.None:
@@ -66,6 +76,15 @@ public class BoardTile : MonoBehaviour
                 break;
             case HighlightType.MovableWithDrop:
                 ren.material.color = Color.Lerp(originalColor, movableWithDropColor, highlightBlendFactor);
+                break;
+            case HighlightType.EnemyIntentTarget:
+                ren.material.color = Color.Lerp(originalColor, enemyIntentTargetColor, highlightBlendFactor);
+                break;
+            case HighlightType.PreviewMovable:
+                ren.material.color = Color.Lerp(originalColor, previewMovableColor, highlightBlendFactor);
+                break;
+            case HighlightType.PreviewAttackable:
+                ren.material.color = Color.Lerp(originalColor, previewAttackableColor, highlightBlendFactor);
                 break;
         }
     }

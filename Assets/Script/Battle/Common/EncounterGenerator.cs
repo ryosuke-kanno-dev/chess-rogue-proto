@@ -9,7 +9,16 @@ namespace Chebyss.Battle
     public class EncounterGeneratorSettings
     {
         [Tooltip("この階数ごとにボス階になる。0以下ならボス階なし")]
-        public int bossFloorInterval = 3;
+        public int bossFloorInterval = 5;
+
+        [Tooltip("最終階。間隔に関わらず必ずボス階（ラスボス）になり、このボスを倒すとランクリア")]
+        public int finalFloor = 15;
+
+        [Tooltip("最終階のボスのHPに掛ける倍率（階によるスケーリング後に適用）")]
+        public float finalBossHpMultiplier = 1.5f;
+
+        [Tooltip("最終階のボスの攻撃力に加える値")]
+        public int finalBossAttackBonus = 2;
 
         public int baseScoutCount = 2;
 
@@ -30,6 +39,12 @@ namespace Chebyss.Battle
 
         [Tooltip("1階進むごとのボスのHP増加量")]
         public int bossHpPerFloor = 2;
+
+        [Tooltip("この階数ごとに、ボスとスカウトの攻撃力が増える。0以下なら増加なし")]
+        public int attackIncreaseEveryFloors = 3;
+
+        [Tooltip("攻撃力の増加量（逃げる敵は対象外）")]
+        public int attackIncreaseAmount = 1;
     }
 
     /// <summary>
@@ -56,7 +71,7 @@ namespace Chebyss.Battle
 
             var rng = new System.Random(seed);
 
-            bool isBossFloor = settings.bossFloorInterval > 0 && floor % settings.bossFloorInterval == 0;
+            bool isBossFloor = EnemyNames.IsBossFloor(floor, settings.bossFloorInterval, settings.finalFloor);
 
             int normalScoutCount = settings.baseScoutCount;
             if (settings.scoutCountIncreaseEveryFloors > 0)
@@ -65,6 +80,11 @@ namespace Chebyss.Battle
 
             int scoutCount = isBossFloor ? Math.Max(1, normalScoutCount - 1) : normalScoutCount;
             int scoutHp = baseScoutHp + (floor - 1) * settings.scoutHpPerFloor;
+
+            // ボス・スカウトの攻撃力は階が進むと段階的に増える（逃げる敵は変更しない）
+            int attackBonus = settings.attackIncreaseEveryFloors > 0
+                ? ((floor - 1) / settings.attackIncreaseEveryFloors) * settings.attackIncreaseAmount
+                : 0;
 
             // 配置：敵陣の最上段から順に使う。ボスは最上段中央に固定。
             var occupied = new HashSet<Vector2Int>();
@@ -105,14 +125,23 @@ namespace Chebyss.Battle
                 var bossPos = new Vector2Int(boardWidth / 2, boardHeight - 1);
                 occupied.Add(bossPos);
                 int bossHp = baseBossHp + (floor - 1) * settings.bossHpPerFloor;
-                spawns.Add(new EnemySpawn(EnemyArchetype.Boss, bossPos, bossHp, baseBossAttack));
+                int bossAttack = baseBossAttack + attackBonus;
+
+                // 最終階のラスボスは、スケーリング後のHPに倍率、攻撃力に加算を適用する
+                if (floor == settings.finalFloor)
+                {
+                    bossHp = Mathf.RoundToInt(bossHp * settings.finalBossHpMultiplier);
+                    bossAttack += settings.finalBossAttackBonus;
+                }
+
+                spawns.Add(new EnemySpawn(EnemyArchetype.Boss, bossPos, bossHp, bossAttack));
             }
 
             for (int i = 0; i < scoutCount; i++)
             {
                 var cell = TakeCell();
                 if (!cell.HasValue) break;
-                spawns.Add(new EnemySpawn(EnemyArchetype.Scout, cell.Value, scoutHp, baseScoutAttack));
+                spawns.Add(new EnemySpawn(EnemyArchetype.Scout, cell.Value, scoutHp, baseScoutAttack + attackBonus));
             }
 
             // 逃げる敵は通常階のみ。確率判定は常にrngを1回消費する（結果が引数だけで決まるように）

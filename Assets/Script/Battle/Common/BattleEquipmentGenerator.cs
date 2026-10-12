@@ -15,11 +15,9 @@ namespace Chebyss.Battle
         private static readonly string[] EpicNames = { "竜鱗の指輪", "業火の剣", "不落の盾", "賢者のマント" };
         private static readonly string[] LegendaryNames = { "星辰の指輪", "破滅の剣", "絶対の盾", "神話のマント" };
 
-        // 駒がダメージを受ける仕組み（仕様書 Phase 2 項目6：駒のHP・墓地システム）が
-        // 実装されるまで、最大HP+は盤面で効果がないため生成しない。
-        // 実装後にtrueへ変えると、全レアリティの候補プールにHpFlatが加わる
-        // （RollBonusValue・FormatBonusのHpFlat分岐は復活用に残してある）。
-        private const bool EnableHpFlat = false;
+        // 駒がダメージを受ける仕組み（A-1）が実装されたため有効化。
+        // falseにすると最大HP+を生成しなくなる（RollBonusValue・FormatBonusのHpFlat分岐は残してある）。
+        private const bool EnableHpFlat = true;
 
         // テスト用：trueにするとCommonの候補プールにもSenseLevel（感知）が加わる。
         // 通常はfalse（感知はRare以上のみ）。

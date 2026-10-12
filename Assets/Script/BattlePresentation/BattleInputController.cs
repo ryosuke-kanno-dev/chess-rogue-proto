@@ -17,6 +17,10 @@ public class BattleInputController : MonoBehaviour
     // 選択中の駒のグリッド座標（未選択ならnull）
     private Vector2Int? selectedPos;
 
+    // 画面上のボタン（BattleControlsUI）から参照するための公開メンバ
+    public bool HasSelection => selectedPos.HasValue;
+    public bool IsPursuing => pursuingKnightPos.HasValue;
+
     // ナイトの追撃移動を選択中の状態
     private Vector2Int? pursuingKnightPos;
     private List<Vector2Int> pursuitCandidates;
@@ -43,6 +47,15 @@ public class BattleInputController : MonoBehaviour
         if (Mouse.current == null) return;
         if (mainCamera == null) mainCamera = Camera.main;
         if (mainCamera == null) return;
+
+        // 右クリック（UIの上でないとき）：選択解除／追撃移動の辞退
+        if (Mouse.current.rightButton.wasPressedThisFrame &&
+            !(EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()))
+        {
+            RequestCancel();
+            return;
+        }
+
         if (!Mouse.current.leftButton.wasPressedThisFrame) return;
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
@@ -81,6 +94,70 @@ public class BattleInputController : MonoBehaviour
         }
 
         return false;
+    }
+
+    // キーボードのカーソルで「決定」したとき：マウスでそのマスをクリックしたときと同じ処理を行う
+    public void RequestActivateCell(Vector2Int cell)
+    {
+        var turnController = bootstrapper.TurnController;
+        if (turnController == null || turnController.CurrentPhase != BattlePhase.PlayerTurn) return;
+
+        if (pursuingKnightPos.HasValue)
+            HandlePursuitClick(cell, turnController);
+        else
+            HandleCellClick(cell, turnController);
+    }
+
+    // キーボードのTabで巡回する対象マス。駒を選択中は「攻撃できる敵のマス→移動できるマス」
+    // （それぞれx→y順）。追撃移動の選択中は追撃先の候補。何も選択していなければ空。
+    public IReadOnlyList<Vector2Int> GetTargetCells()
+    {
+        var result = new List<Vector2Int>();
+
+        if (pursuingKnightPos.HasValue)
+        {
+            if (pursuitCandidates != null) result.AddRange(pursuitCandidates);
+            result.Sort(CompareCells);
+            return result;
+        }
+
+        var turnController = bootstrapper.TurnController;
+        if (!selectedPos.HasValue || turnController == null) return result;
+
+        var attackable = new List<Vector2Int>(turnController.GetAttackableTiles(selectedPos.Value));
+        var movable = new List<Vector2Int>(turnController.GetMovableTiles(selectedPos.Value));
+        attackable.Sort(CompareCells);
+        movable.Sort(CompareCells);
+
+        result.AddRange(attackable);
+        result.AddRange(movable);
+        return result;
+    }
+
+    private static int CompareCells(Vector2Int a, Vector2Int b)
+    {
+        int byX = a.x.CompareTo(b.x);
+        return byX != 0 ? byX : a.y.CompareTo(b.y);
+    }
+
+    // 「選択中の駒自身を再クリックしたとき」と同じ処理（待機）
+    public void RequestWait()
+    {
+        var turnController = bootstrapper.TurnController;
+        if (turnController == null || turnController.CurrentPhase != BattlePhase.PlayerTurn) return;
+        if (!selectedPos.HasValue) return;
+
+        turnController.Wait(selectedPos.Value);
+        Deselect();
+    }
+
+    // 追撃移動の選択中は辞退、駒を選択中なら選択解除。どちらでもなければ何もしない。
+    public void RequestCancel()
+    {
+        if (pursuingKnightPos.HasValue)
+            CancelInteraction();
+        else if (selectedPos.HasValue)
+            Deselect();
     }
 
     private void HandleCellClick(Vector2Int cell, BattleTurnController turnController)

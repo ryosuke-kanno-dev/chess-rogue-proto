@@ -19,6 +19,8 @@ public class BattleResultPanelUI : MonoBehaviour
     [Header("表示文言（フォント対応・多言語対応のためInspectorから変更可能にする）")]
     [SerializeField] private string victoryMessage = "勝利！";
     [SerializeField] private string defeatMessage = "チェックメイト";
+    [SerializeField] private string wipeoutMessage = "全滅…";
+    [SerializeField] private string runClearMessage = "ラン クリア！";
 
     private BattlePhase lastPhase = BattlePhase.PlayerTurn;
 
@@ -39,11 +41,19 @@ public class BattleResultPanelUI : MonoBehaviour
 
         if (phase == BattlePhase.Victory)
         {
-            if (bootstrapper.Loadout != null)
+            // 倒れた駒の確定とラン統計への記録（このバトルで1回だけ）
+            bootstrapper.CommitVictory();
+
+            if (bootstrapper.IsFinalFloor && bootstrapper.RunEnd != null)
+            {
+                // 最終階のボスを倒した：装備画面は開かず、ランクリアの結果画面を出す
+                bootstrapper.RunEnd.Open(true, runClearMessage);
+            }
+            else if (bootstrapper.Loadout != null)
             {
                 // 勝利時は結果パネルではなく、全画面の装備画面を開く
                 bootstrapper.PrepareNextFloor();
-                bootstrapper.Loadout.Open(turnController.LootLedger.Collected);
+                bootstrapper.Loadout.Open(turnController.LootLedger.Collected, bootstrapper.LastCasualties);
             }
             else
             {
@@ -53,8 +63,18 @@ public class BattleResultPanelUI : MonoBehaviour
         }
         else if (phase == BattlePhase.Defeat)
         {
-            Show(defeatMessage);
-            if (dropListText != null) dropListText.text = ""; // 敗北時はドロップを回収しないため表示しない
+            // キング以外の全駒が倒れた敗北は「全滅」、それ以外（キング撃破）は従来どおり「チェックメイト」
+            string message = turnController.DefeatReason == DefeatReason.AllPiecesDefeated ? wipeoutMessage : defeatMessage;
+
+            if (bootstrapper.RunEnd != null)
+            {
+                bootstrapper.RunEnd.Open(false, message);
+            }
+            else
+            {
+                Show(message);
+                if (dropListText != null) dropListText.text = ""; // 敗北時はドロップを回収しないため表示しない
+            }
         }
     }
 

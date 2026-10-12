@@ -25,7 +25,10 @@ public class DropHoverController : MonoBehaviour
     void Update()
     {
         var turnController = bootstrapper != null ? bootstrapper.TurnController : null;
-        if (turnController == null || Mouse.current == null)
+        var keyboardCursor = bootstrapper != null ? bootstrapper.KeyboardCursor : null;
+        bool useKeyboard = keyboardCursor != null && keyboardCursor.IsActive;
+
+        if (turnController == null || (!useKeyboard && Mouse.current == null))
         {
             HideOwnTooltip();
             return;
@@ -34,15 +37,39 @@ public class DropHoverController : MonoBehaviour
         if (mainCamera == null) mainCamera = Camera.main;
         if (mainCamera == null) return;
 
-        // UI上ではドロップ判定を行わない（自分の表示が残っていれば消す）
-        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+        Vector2Int cell;
+        Vector2 screenPos;
+
+        if (useKeyboard)
         {
-            HideOwnTooltip();
-            return;
+            // キーボードカーソルが有効な間は、カーソルのマスのワールド位置を画面座標にしてマウス位置の代わりにする
+            cell = keyboardCursor.Cell;
+            var tile = boardGenerator != null ? boardGenerator.GetTile(cell) : null;
+            if (tile == null)
+            {
+                HideOwnTooltip();
+                return;
+            }
+            screenPos = mainCamera.WorldToScreenPoint(tile.transform.position);
+        }
+        else
+        {
+            // UI上ではドロップ判定を行わない（自分の表示が残っていれば消す）
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            {
+                HideOwnTooltip();
+                return;
+            }
+
+            if (!TryResolveCellUnderCursor(out cell))
+            {
+                HideOwnTooltip();
+                return;
+            }
+            screenPos = Mouse.current.position.ReadValue();
         }
 
-        if (!TryResolveCellUnderCursor(out var cell) ||
-            !turnController.TryGetDropAt(cell, out var drop))
+        if (!turnController.TryGetDropAt(cell, out var drop))
         {
             HideOwnTooltip();
             return;
@@ -58,16 +85,14 @@ public class DropHoverController : MonoBehaviour
             return;
         }
 
-        Vector2 mousePos = Mouse.current.position.ReadValue();
-
         if (shownDropId != drop.dropId)
         {
             shownDropId = drop.dropId;
-            TooltipUI.Instance.Show(BuildName(drop.item), BuildDescription(drop.item), mousePos);
+            TooltipUI.Instance.Show(BuildName(drop.item), BuildDescription(drop.item), screenPos);
         }
         else
         {
-            TooltipUI.Instance.UpdatePosition(mousePos);
+            TooltipUI.Instance.UpdatePosition(screenPos);
         }
     }
 

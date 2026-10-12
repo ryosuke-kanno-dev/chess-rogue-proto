@@ -20,6 +20,7 @@ namespace Chebyss.Battle
         private readonly IReadOnlyDictionary<PieceType, PieceMovementPatternSO> playerPatterns;
 
         public BattlePhase CurrentPhase { get; private set; } = BattlePhase.PlayerTurn;
+        public DefeatReason DefeatReason { get; private set; } = DefeatReason.None;
         public BattleDamageLog DamageLog { get; } = new BattleDamageLog();
         public BattleExperienceLedger ExperienceLedger { get; } = new BattleExperienceLedger();
 
@@ -143,6 +144,14 @@ namespace Chebyss.Battle
             if (result.kingDefeated)
             {
                 CurrentPhase = BattlePhase.Defeat;
+                DefeatReason = DefeatReason.KingDefeated;
+                return;
+            }
+
+            if (result.allPiecesDefeated)
+            {
+                CurrentPhase = BattlePhase.Defeat;
+                DefeatReason = DefeatReason.AllPiecesDefeated;
                 return;
             }
 

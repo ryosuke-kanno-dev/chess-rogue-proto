@@ -1101,6 +1101,8 @@ MonoBehaviour:
   dropListText: {fileID: 1766916677}
   victoryMessage: "\u52DD\u5229\uFF01"
   defeatMessage: "\u30C1\u30A7\u30C3\u30AF\u30E1\u30A4\u30C8"
+  wipeoutMessage: "\u5168\u6EC5\u2026"
+  runClearMessage: "\u30E9\u30F3 \u30AF\u30EA\u30A2\uFF01"
 --- !u!114 &789085524
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1398,6 +1400,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyIntentDisplay
   boardGenerator: {fileID: 743558630}
+  labelFontSize: 6
+  labelHeight: 1.3
 --- !u!4 &1008376980
 Transform:
   m_ObjectHideFlags: 0
@@ -1830,7 +1834,10 @@ MonoBehaviour:
   enemyTintColor: {r: 0.55, g: 0.15, b: 0.15, a: 1}
   retreaterTintColor: {r: 1, g: 0.85, b: 0.3, a: 1}
   encounterSettings:
-    bossFloorInterval: 3
+    bossFloorInterval: 5
+    finalFloor: 15
+    finalBossHpMultiplier: 1.5
+    finalBossAttackBonus: 2
     baseScoutCount: 2
     scoutCountIncreaseEveryFloors: 2
     maxScoutCount: 5
@@ -1839,6 +1846,8 @@ MonoBehaviour:
     retreaterAttack: 1
     scoutHpPerFloor: 1
     bossHpPerFloor: 2
+    attackIncreaseEveryFloors: 3
+    attackIncreaseAmount: 1
   bossStartPosition: {x: 4, y: 7}
   scoutStartPositions:
   - {x: 2, y: 7}

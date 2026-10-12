@@ -3,6 +3,7 @@ using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Chebyss.Battle;
@@ -21,6 +22,8 @@ public class LoadoutPanelUI : MonoBehaviour
     private static readonly Color EmptySlotColor = new Color(0.14f, 0.14f, 0.19f, 1f);
     private static readonly Color SelectedColor = new Color(0.55f, 0.45f, 0.12f, 1f);
     private static readonly Color PrimaryButtonColor = new Color(0.15f, 0.40f, 0.25f, 1f);
+    private static readonly Color ReviveButtonColor = new Color(0.40f, 0.22f, 0.22f, 1f);
+    private static readonly Color DeadTextColor = new Color(0.5f, 0.52f, 0.58f);
 
     private class SlotView
     {
@@ -42,6 +45,15 @@ public class LoadoutPanelUI : MonoBehaviour
 
     private readonly Dictionary<PieceType, TextMeshProUGUI> statTexts = new();
     private readonly Dictionary<PieceType, SlotView[]> slotViews = new();
+    private readonly Dictionary<PieceType, TextMeshProUGUI> pieceLabels = new();
+    private readonly Dictionary<PieceType, GameObject> reviveButtons = new();
+    private TextMeshProUGUI messageText;
+
+    // キーボード操作用
+    private Button nextBattleButton;
+    private ScrollRect inventoryScroll;
+    private int openedFrame = -1;
+    private GameObject lastSelectedForScroll;
     private readonly List<GameObject> inventoryItemObjects = new();
 
     private EquipmentInstance selectedItem;
@@ -55,7 +67,7 @@ public class LoadoutPanelUI : MonoBehaviour
     }
 
     // 今回の戦利品を「NEW」として先頭に並べ、画面を開く
-    public void Open(IReadOnlyList<EquipmentInstance> newItems)
+    public void Open(IReadOnlyList<EquipmentInstance> newItems, IReadOnlyList<PieceType> casualties)
     {
         newItemIds.Clear();
         if (newItems != null)
@@ -65,6 +77,19 @@ public class LoadoutPanelUI : MonoBehaviour
         }
 
         selectedItem = null;
+        openedFrame = Time.frameCount; // 開いたフレームのキー入力（直前の決定キーなど）は無視する
+
+        // このバトルで倒れた駒があれば知らせる（装備は既に所持品へ戻っている）
+        if (casualties != null && casualties.Count > 0)
+        {
+            var names = new List<string>();
+            foreach (var type in casualties) names.Add(GetPieceDisplayName(type));
+            SetMessage($"倒れた駒: {string.Join("、", names)}（装備は所持品に戻りました）");
+        }
+        else
+        {
+            SetMessage("");
+        }
 
         if (EventSystem.current == null)
             Debug.LogWarning("[LoadoutPanelUI] シーンに EventSystem がありません。装備画面のボタンが反応しません。");
@@ -108,6 +133,8 @@ public class LoadoutPanelUI : MonoBehaviour
         BuildInventoryPanel(root);
         BuildNextFloorPanel(root);
         BuildNextBattleButton(root);
+        BuildMessageText(root);
+        BuildKeyHintText(root);
 
         canvasObject.SetActive(false);
     }
@@ -131,6 +158,7 @@ public class LoadoutPanelUI : MonoBehaviour
             var label = CreateText($"PieceLabel_{type}", row, $"<nobr>{GetPieceDisplayName(type)}</nobr>", 30f, TextAlignmentOptions.Center, Color.white, true);
             label.fontSizeMin = 18f;
             Stretch(label.rectTransform, new Vector2(0f, 0f), new Vector2(0.15f, 1f));
+            pieceLabels[type] = label;
 
             var stat = CreateText($"StatText_{type}", row, "", 21f, TextAlignmentOptions.MidlineLeft, Color.white, true);
             Stretch(stat.rectTransform, new Vector2(0.15f, 0.68f), new Vector2(0.99f, 1f));
@@ -150,6 +178,17 @@ public class LoadoutPanelUI : MonoBehaviour
                 views[s] = new SlotView { image = slotImage, label = slotLabel };
             }
             slotViews[type] = views;
+
+            // 墓地の駒の行では、スロットの代わりにこのボタンを表示する
+            var reviveButton = CreateButton($"ReviveButton_{type}", row, out var reviveLabel, out _, ReviveButtonColor, 24f);
+            Stretch(reviveButton.GetComponent<RectTransform>(), new Vector2(0.15f, 0.06f), new Vector2(0.99f, 0.64f));
+            reviveLabel.text = "蘇生（装備を1つ消費）";
+            reviveLabel.alignment = TextAlignmentOptions.Center;
+
+            var reviveType = type;
+            reviveButton.onClick.AddListener(() => OnReviveClicked(reviveType));
+            reviveButton.gameObject.SetActive(false);
+            reviveButtons[type] = reviveButton.gameObject;
         }
     }
 
@@ -202,6 +241,7 @@ public class LoadoutPanelUI : MonoBehaviour
         scroll.scrollSensitivity = 40f;
 
         inventoryContent = content;
+        inventoryScroll = scroll;
     }
 
     private void BuildNextFloorPanel(RectTransform root)
@@ -337,6 +377,7 @@ public class LoadoutPanelUI : MonoBehaviour
     {
         var button = CreateButton("NextBattleButton", root, out var label, out _, PrimaryButtonColor, 32f);
         Stretch(button.GetComponent<RectTransform>(), new Vector2(0.70f, 0.015f), new Vector2(0.98f, 0.085f));
+        nextBattleButton = button;
         label.text = "次の階へ";
         label.alignment = TextAlignmentOptions.Center;
 
@@ -347,6 +388,138 @@ public class LoadoutPanelUI : MonoBehaviour
     // ---------------------------------------------------------------
     // 操作
     // ---------------------------------------------------------------
+
+    // ---- キーボード操作 ----
+
+    void Update()
+    {
+        if (canvasObject == null || !canvasObject.activeInHierarchy) return;
+
+        EnsureKeyboardSelection();
+        EnsureSelectedInventoryItemVisible();
+
+        var keyboard = Keyboard.current;
+        if (keyboard == null) return;
+        if (Time.frameCount <= openedFrame) return;
+
+        if (keyboard.spaceKey.wasPressedThisFrame && nextBattleButton != null)
+        {
+            // Space：次の階へ
+            nextBattleButton.onClick.Invoke();
+        }
+        else if ((keyboard.escapeKey.wasPressedThisFrame || keyboard.backspaceKey.wasPressedThisFrame) && selectedItem != null)
+        {
+            // Esc／Backspace：所持品の選択を解除する
+            selectedItem = null;
+            Refresh();
+        }
+    }
+
+    // 選択中のUIが無い（または破棄・非表示になった）ときに、最初に見つかったボタンを選択する。
+    // 矢印キー／WASDでの移動とEnterは、Unity UIの自動ナビゲーションとSubmitに任せる。
+    private void EnsureKeyboardSelection()
+    {
+        if (canvasObject == null || !canvasObject.activeInHierarchy) return;
+        if (Time.frameCount <= openedFrame) return; // 開いたフレームは、同じ決定キーでSubmitされないよう待つ
+
+        var eventSystem = EventSystem.current;
+        if (eventSystem == null) return;
+
+        var current = eventSystem.currentSelectedGameObject;
+        if (current != null && current.activeInHierarchy) return;
+
+        var target = FindFirstSelectable();
+        if (target != null) eventSystem.SetSelectedGameObject(target);
+    }
+
+    // 所持品 → 生存している駒のスロット → 墓地の駒の蘇生ボタン → 次の階へ、の順
+    private GameObject FindFirstSelectable()
+    {
+        foreach (var go in inventoryItemObjects)
+        {
+            if (go != null && go.activeInHierarchy && go.GetComponent<Button>() != null) return go;
+        }
+
+        foreach (var type in PieceOrder)
+        {
+            if (RunState.IsPieceDead(type)) continue;
+
+            var slotObject = slotViews[type][0].image.gameObject;
+            if (slotObject.activeInHierarchy) return slotObject;
+        }
+
+        foreach (var type in PieceOrder)
+        {
+            if (!RunState.IsPieceDead(type)) continue;
+
+            if (reviveButtons[type].activeInHierarchy) return reviveButtons[type];
+        }
+
+        return nextBattleButton != null ? nextBattleButton.gameObject : null;
+    }
+
+    // キーボードで所持品の選択が移ったとき、スクロール領域の外に出ないよう表示位置を合わせる
+    private void EnsureSelectedInventoryItemVisible()
+    {
+        var current = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
+        if (current == lastSelectedForScroll) return;
+        lastSelectedForScroll = current;
+
+        if (current == null || inventoryScroll == null || inventoryContent == null) return;
+        if (!current.transform.IsChildOf(inventoryContent)) return;
+
+        var item = current.GetComponent<RectTransform>();
+        var viewport = inventoryScroll.viewport;
+        if (item == null || viewport == null) return;
+
+        var itemCorners = new Vector3[4];
+        var viewportCorners = new Vector3[4];
+        item.GetWorldCorners(itemCorners);
+        viewport.GetWorldCorners(viewportCorners);
+
+        float delta = 0f;
+        if (itemCorners[1].y > viewportCorners[1].y) delta = viewportCorners[1].y - itemCorners[1].y;
+        else if (itemCorners[0].y < viewportCorners[0].y) delta = viewportCorners[0].y - itemCorners[0].y;
+
+        if (delta != 0f) inventoryContent.position += new Vector3(0f, delta, 0f);
+    }
+
+    private void BuildKeyHintText(RectTransform root)
+    {
+        var hint = CreateText("LoadoutKeyHintText", root, "[矢印/WASD] 移動　[Enter] 決定　[Esc] 選択解除　[Space] 次の階へ",
+            20f, TextAlignmentOptions.MidlineLeft, new Color(0.75f, 0.78f, 0.88f), true);
+        Stretch(hint.rectTransform, new Vector2(0.02f, 0f), new Vector2(0.68f, 0.035f));
+    }
+
+    // NextBattleButtonの左側の空き領域に1行のメッセージを出す
+    private void BuildMessageText(RectTransform root)
+    {
+        messageText = CreateText("LoadoutMessageText", root, "", 24f, TextAlignmentOptions.MidlineLeft, new Color(1f, 0.9f, 0.6f), true);
+        Stretch(messageText.rectTransform, new Vector2(0.02f, 0.015f), new Vector2(0.68f, 0.085f));
+    }
+
+    private void SetMessage(string text)
+    {
+        if (messageText != null) messageText.text = text;
+    }
+
+    private void OnReviveClicked(PieceType type)
+    {
+        if (selectedItem == null)
+        {
+            SetMessage(RunState.Inventory.Items.Count == 0
+                ? "蘇生に使える装備がありません"
+                : "蘇生に使う装備を、所持品から選んでください");
+            return;
+        }
+
+        var sacrifice = selectedItem;
+        if (!RunState.TryRevive(type, sacrifice)) return;
+
+        selectedItem = null;
+        SetMessage($"{GetPieceDisplayName(type)}を蘇生しました（{sacrifice.itemName}を消費）");
+        Refresh();
+    }
 
     private void OnInventoryItemClicked(EquipmentInstance item)
     {
@@ -377,11 +550,28 @@ public class LoadoutPanelUI : MonoBehaviour
     {
         foreach (var type in PieceOrder)
         {
-            statTexts[type].text = BuildStatText(type);
+            bool dead = RunState.IsPieceDead(type);
+
+            // 駒名ラベル：墓地の駒はグレー＋「（戦闘不能）」
+            string pieceName = GetPieceDisplayName(type);
+            pieceLabels[type].text = dead
+                ? $"<nobr>{pieceName}</nobr>\n<size=60%><nobr>（戦闘不能）</nobr></size>"
+                : $"<nobr>{pieceName}</nobr>";
+            pieceLabels[type].color = dead ? DeadTextColor : Color.white;
+
+            statTexts[type].text = dead
+                ? "<color=#808898>戦闘不能（墓地）</color>"
+                : BuildStatText(type);
+
+            // 墓地の駒はスロットを隠し、蘇生ボタンを出す
+            reviveButtons[type].SetActive(dead);
 
             var equipped = RunState.GetEquipped(type);
             for (int s = 0; s < RunState.SlotsPerPiece; s++)
             {
+                slotViews[type][s].image.gameObject.SetActive(!dead);
+                if (dead) continue;
+
                 var item = s < equipped.Count ? equipped[s] : null;
                 slotViews[type][s].label.text = FormatSlot(type, item);
                 slotViews[type][s].image.color = item == null ? EmptySlotColor : ButtonColor;
@@ -391,6 +581,7 @@ public class LoadoutPanelUI : MonoBehaviour
         RefreshInventory();
         nextFloorInfoText.text = BuildNextFloorInfo();
         RefreshMap(Mathf.Clamp(bootstrapper.GetSenseLevel(), 0, RunState.MaxSenseLevel));
+        EnsureKeyboardSelection();
     }
 
     private void RefreshInventory()
@@ -442,8 +633,10 @@ public class LoadoutPanelUI : MonoBehaviour
     private string BuildStatText(PieceType type)
     {
         int baseAttack = bootstrapper.GetPlayerBaseAttack(type);
+        int baseHp = bootstrapper.GetPlayerBaseHp(type);
 
         float attackFlat = 0f;
+        float hpFlat = 0f;
         float bonusActions = 0f;
         float distanceRate = 0f;
 
@@ -456,6 +649,7 @@ public class LoadoutPanelUI : MonoBehaviour
                 switch (bonus.statType)
                 {
                     case EquipmentStatType.AttackFlat:        attackFlat += bonus.value; break;
+                    case EquipmentStatType.HpFlat:            hpFlat += bonus.value; break;
                     case EquipmentStatType.BonusActions:      bonusActions += bonus.value; break;
                     case EquipmentStatType.DistanceBonusRate: distanceRate += bonus.value; break;
                 }
@@ -465,7 +659,9 @@ public class LoadoutPanelUI : MonoBehaviour
         int finalAttack = baseAttack + Mathf.RoundToInt(attackFlat);
         int finalActions = 1 + (int)bonusActions; // PieceSnapshotFactory.ComputeMaxActionsと同じ計算
 
-        string text = $"攻撃力 {baseAttack}→{finalAttack} / 行動回数 1→{finalActions}";
+        int finalHp = baseHp + Mathf.RoundToInt(hpFlat);
+
+        string text = $"攻撃力 {baseAttack}→{finalAttack} / HP {baseHp}→{finalHp} / 行動回数 1→{finalActions}";
 
         if (type == PieceType.Knight)
         {
@@ -524,7 +720,9 @@ public class LoadoutPanelUI : MonoBehaviour
             : "<color=#8890A0>（装備の「感知」の合計。上げるほど次の階の情報が増える）</color>";
 
         var sb = new StringBuilder();
-        sb.Append($"<color=#FFE060><size=120%>次の階: {RunState.CurrentFloor}F</size></color>\n");
+        string bossRank = EnemyNames.GetBossRankName(RunState.CurrentFloor, bootstrapper.BossFloorInterval, bootstrapper.FinalFloor);
+        string bossSuffix = string.IsNullOrEmpty(bossRank) ? "" : $" <color=#FF6060>（{bossRank}階）</color>";
+        sb.Append($"<color=#FFE060><size=120%>次の階: {RunState.CurrentFloor}F</size></color>{bossSuffix}\n");
         sb.Append($"感知レベル: Lv{level}  {senseNote}\n");
 
         var plan = RunState.NextEncounter;
@@ -545,7 +743,7 @@ public class LoadoutPanelUI : MonoBehaviour
         return sb.ToString();
     }
 
-    private static string BuildComposition(EncounterPlan plan)
+    private string BuildComposition(EncounterPlan plan)
     {
         var order = new List<EnemyArchetype>();
         var counts = new Dictionary<EnemyArchetype, int>();
@@ -562,21 +760,21 @@ public class LoadoutPanelUI : MonoBehaviour
 
         var parts = new List<string>();
         foreach (var archetype in order)
-            parts.Add($"<nobr>{GetEnemyDisplayName(archetype)}×{counts[archetype]}</nobr>");
+            parts.Add($"<nobr>{EnemyName(plan, archetype)}×{counts[archetype]}</nobr>");
 
         return string.Join(" / ", parts);
     }
 
-    // 同じ種類・同じHPの敵を1行にまとめる。
-    // 例：「スカウト×2: HP6 / キング3ダメージ / 追跡 / ドロップ品質 低」
+    // 同じ種類・同じHP・同じ攻撃力の敵を1行にまとめる。
+    // 例：「スカウト×2: HP6 / キング3・駒3ダメージ / 追跡 / ドロップ品質 低」
     private string BuildDetails(EncounterPlan plan)
     {
-        var order = new List<(EnemyArchetype archetype, int hp)>();
-        var counts = new Dictionary<(EnemyArchetype archetype, int hp), int>();
+        var order = new List<(EnemyArchetype archetype, int hp, int attack)>();
+        var counts = new Dictionary<(EnemyArchetype archetype, int hp, int attack), int>();
 
         foreach (var enemy in plan.enemies)
         {
-            var key = (enemy.archetype, enemy.hp);
+            var key = (enemy.archetype, enemy.hp, enemy.attack);
             if (!counts.ContainsKey(key))
             {
                 counts[key] = 0;
@@ -589,10 +787,10 @@ public class LoadoutPanelUI : MonoBehaviour
         foreach (var key in order)
         {
             int kingDamage = bootstrapper.GetEnemyKingDamage(key.archetype);
-            string kingText = kingDamage < 0 ? "キング？ダメージ" : $"キング{kingDamage}ダメージ";
+            string kingText = kingDamage < 0 ? "キング？" : $"キング{kingDamage}";
             string quality = DropRules.GetQualityTier(key.archetype) >= 3 ? "高" : "低";
 
-            lines.Add($"<nobr>{GetEnemyDisplayName(key.archetype)}×{counts[key]}: HP{key.hp} / {kingText} / {GetEnemyBehaviorName(key.archetype)} / ドロップ品質 {quality}</nobr>");
+            lines.Add($"<nobr>{EnemyName(plan, key.archetype)}×{counts[key]}: HP{key.hp} / {kingText}・駒{key.attack}ダメージ / {GetEnemyBehaviorName(key.archetype)} / ドロップ品質 {quality}</nobr>");
         }
 
         return string.Join("\n", lines);
@@ -621,15 +819,10 @@ public class LoadoutPanelUI : MonoBehaviour
         }
     }
 
-    private static string GetEnemyDisplayName(EnemyArchetype archetype)
+    // ボスの呼び名は階によって変わる（小ボス／中ボス／ラスボス）ため、計画の階数から決める
+    private string EnemyName(EncounterPlan plan, EnemyArchetype archetype)
     {
-        switch (archetype)
-        {
-            case EnemyArchetype.Boss:      return "ボス";
-            case EnemyArchetype.Scout:     return "スカウト";
-            case EnemyArchetype.Retreater: return "逃げる敵";
-            default:                       return archetype.ToString();
-        }
+        return EnemyNames.GetDisplayName(archetype, plan.floorNumber, bootstrapper.BossFloorInterval, bootstrapper.FinalFloor);
     }
 
     // ---------------------------------------------------------------
@@ -688,6 +881,7 @@ public class LoadoutPanelUI : MonoBehaviour
 
         var button = rt.gameObject.AddComponent<Button>();
         button.targetGraphic = image;
+        rt.gameObject.AddComponent<UIFocusOutline>(); // キーボードで選択中の縁取り
 
         label = CreateText("Label", rt, "", fontSize, TextAlignmentOptions.MidlineLeft, Color.white, true);
         Stretch(label.rectTransform, Vector2.zero, Vector2.one);

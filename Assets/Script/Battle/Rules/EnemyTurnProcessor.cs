@@ -20,6 +20,9 @@ namespace Chebyss.Battle
         {
             var actions = new List<EnemyActionRecord>();
 
+            // 全滅判定用：このターンの開始時にキング以外の味方駒がいたか
+            bool hadPieces = CountNonKingPlayerPieces(board) > 0;
+
             foreach (var enemyPos in board.GetAllEnemyPiecePositionsOrdered())
             {
                 if (!board.TryGetEnemyPiece(enemyPos, out var enemy)) continue;
@@ -49,10 +52,12 @@ namespace Chebyss.Battle
                     }
                 }
 
+                // a. キングに隣接していれば、従来どおりキングを攻撃する
                 if (NearestPieceMoveHelper.ChebyshevDistance(finalPosition, board.KingPosition) == 1)
                 {
+                    int kingDamage = pattern.kingDamage;
                     var kingDamageOutcome = new AttackOutcome(
-                        damage: pattern.kingDamage,
+                        damage: kingDamage,
                         targetDefeated: false,
                         appliedEffects: null,
                         knockbackDestination: null,
@@ -60,18 +65,46 @@ namespace Chebyss.Battle
                         chainCollisionResult: null);
 
                     board.ApplyAttack(true, board.KingPosition, kingDamageOutcome);
-                    actions.Add(new EnemyActionRecord(enemy.instanceId, enemy.position, false, destination, true));
 
-                    if (board.TryGetPlayerPiece(board.KingPosition, out var king) && king.currentHp <= 0)
+                    bool kingDown = board.TryGetPlayerPiece(board.KingPosition, out var king) && king.currentHp <= 0;
+                    actions.Add(new EnemyActionRecord(
+                        enemy.instanceId, enemy.position, false, destination, true,
+                        board.KingPosition, kingDamage, kingDown));
+
+                    if (kingDown)
                         return new EnemyTurnResult(kingDefeated: true, actions);
 
+                    continue;
+                }
+
+                // b. キングに隣接していない場合のみ、隣接する味方駒（キング除く）のうちHPが最も低い駒を攻撃する。
+                // c. 対象は毎回その時点の盤面から選ぶため、同ターン内で駒が倒れた後は残りの駒から選び直される。
+                if (TryFindWeakestAdjacentPlayerPiece(board, finalPosition, out var targetPos, out var target))
+                {
+                    int damage = enemy.attack;
+                    bool defeated = target.currentHp - damage <= 0;
+
+                    var outcome = new AttackOutcome(
+                        damage: damage,
+                        targetDefeated: defeated,
+                        appliedEffects: null,
+                        knockbackDestination: null,
+                        pursuitMoveCandidates: null,
+                        chainCollisionResult: null);
+
+                    board.ApplyAttack(true, targetPos, outcome);
+
+                    actions.Add(new EnemyActionRecord(
+                        enemy.instanceId, enemy.position, false, destination, false,
+                        targetPos, damage, defeated));
                     continue;
                 }
 
                 actions.Add(new EnemyActionRecord(enemy.instanceId, enemy.position, false, destination, false));
             }
 
-            return new EnemyTurnResult(kingDefeated: false, actions);
+            bool allPiecesDefeated = hadPieces && CountNonKingPlayerPieces(board) == 0;
+            return new EnemyTurnResult(kingDefeated: false, actions, allPiecesDefeated);
         }
 
         // インテント表示用：BoardStateの複製の上でProcess()をそのまま実行し、
@@ -79,6 +112,43 @@ namespace Chebyss.Battle
         public EnemyTurnResult PreviewNextTurn(BoardState board)
         {
             return Process(board.Clone());
+        }
+
+        private static int CountNonKingPlayerPieces(BoardState board)
+        {
+            int count = 0;
+            foreach (var pos in board.GetAllPlayerPiecePositionsOrdered())
+            {
+                if (board.TryGetPlayerPiece(pos, out var piece) && piece.pieceType != PieceType.King)
+                    count++;
+            }
+            return count;
+        }
+
+        // 隣接（チェビシェフ距離1）する味方駒（キング除く）のうちcurrentHpが最小の駒。
+        // 同値は GetAllPlayerPiecePositionsOrdered の順で先のものを優先する（厳密に小さい場合のみ更新）。
+        private static bool TryFindWeakestAdjacentPlayerPiece(
+            BoardState board, Vector2Int from, out Vector2Int targetPos, out PieceSnapshot target)
+        {
+            targetPos = default;
+            target = default;
+            bool found = false;
+
+            foreach (var pos in board.GetAllPlayerPiecePositionsOrdered())
+            {
+                if (!board.TryGetPlayerPiece(pos, out var piece)) continue;
+                if (piece.pieceType == PieceType.King) continue;
+                if (NearestPieceMoveHelper.ChebyshevDistance(from, pos) != 1) continue;
+
+                if (!found || piece.currentHp < target.currentHp)
+                {
+                    found = true;
+                    targetPos = pos;
+                    target = piece;
+                }
+            }
+
+            return found;
         }
 
         private static bool HasActiveEffect(PieceSnapshot piece, StatusEffectType type)
