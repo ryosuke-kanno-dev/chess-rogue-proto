@@ -99,9 +99,20 @@ public class KeyboardCursorController : MonoBehaviour
         if (screenDirection != Vector2Int.zero && wasActive) MoveCursor(screenDirection);
 
         if (placement)
-            HandlePlacementInput(confirm && wasActive, cancel, tab, shift, space);
+        {
+            // 駒が未選択なら、非表示からの最初のTabでも最初の駒を選択する。
+            // 選択中なら、非表示からの最初のTabはカーソルを表示するだけにする。
+            var placementInput = bootstrapper.PlacementInput;
+            bool hasSelection = placementInput != null && placementInput.SelectedType.HasValue;
+            bool tabForPlacement = tab && (wasActive || !hasSelection);
+
+            HandlePlacementInput(confirm && wasActive, cancel, tabForPlacement, shift, space);
+        }
         else
-            HandleBattleInput(confirm && wasActive, cancel, tab, shift, space);
+        {
+            // バトル中：非表示からの最初のTabは、カーソルを表示するだけ（巡回しない）
+            HandleBattleInput(confirm && wasActive, cancel, tab && wasActive, shift, space);
+        }
 
         UpdateCursorVisual();
         if (placement) UpdatePlacementPreview();

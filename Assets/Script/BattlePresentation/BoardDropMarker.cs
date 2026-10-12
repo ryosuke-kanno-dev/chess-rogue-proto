@@ -11,15 +11,18 @@ public class BoardDropMarker : MonoBehaviour
 
     public int DropId { get; private set; }
     public EquipmentInstance Item { get; private set; }
+    public EquipmentInstance BoostedItem { get; private set; }
 
     private Transform visual;
+    private GameObject disc; // 拾得後のレアリティの色の円盤（球は上下に浮遊するが、円盤はマスの上に固定）
     private Vector3 basePosition;
     private float bobPhase;
 
-    public void Initialize(int dropId, EquipmentInstance item, Vector3 worldPosition)
+    public void Initialize(int dropId, EquipmentInstance item, EquipmentInstance boostedItem, Vector3 worldPosition)
     {
         DropId = dropId;
         Item = item;
+        BoostedItem = boostedItem;
         basePosition = worldPosition;
         transform.position = worldPosition;
         bobPhase = dropId * 0.7f; // 複数のドロップが同じ位相で揺れないようにずらす
@@ -37,6 +40,34 @@ public class BoardDropMarker : MonoBehaviour
         var renderer = sphere.GetComponent<Renderer>();
         if (renderer != null)
             renderer.material.color = GetRarityColor(item != null ? item.rarity : EquipmentRarity.Common);
+
+        CreateBoostDisc(worldPosition);
+    }
+
+    // 拾得ボーナス（+1版）がある場合だけ、球の下に、拾得後のレアリティの色の薄い円盤を置く
+    private void CreateBoostDisc(Vector3 spherePosition)
+    {
+        if (BoostedItem == null) return;
+
+        disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        disc.name = "DropBoostDisc";
+        // Cylinderの標準は直径1・高さ2。直径0.7・高さ0.03にする
+        disc.transform.localScale = new Vector3(0.7f, 0.015f, 0.7f);
+        // 球の中心はマスの上面から0.45上。その真下、マスの上面のすぐ上に置く
+        disc.transform.position = spherePosition + Vector3.down * 0.43f;
+
+        // Raycastを妨げないよう、Colliderは付けない
+        var discCollider = disc.GetComponent<Collider>();
+        if (discCollider != null) Destroy(discCollider);
+
+        var discRenderer = disc.GetComponent<Renderer>();
+        if (discRenderer != null)
+            discRenderer.material.color = GetRarityColor(BoostedItem.rarity);
+    }
+
+    void OnDestroy()
+    {
+        if (disc != null) Destroy(disc);
     }
 
     void Update()

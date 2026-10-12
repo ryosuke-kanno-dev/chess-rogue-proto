@@ -10,12 +10,16 @@ namespace Chebyss.Battle
     {
         public readonly int dropId;
         public readonly EquipmentInstance item;
+
+        // 駒が停止して拾得したときに獲得する+1版（レアリティが1つ上）。nullなら+1版なし。
+        public readonly EquipmentInstance boostedItem;
         public readonly Vector2Int position;
 
-        public DropEntry(int dropId, EquipmentInstance item, Vector2Int position)
+        public DropEntry(int dropId, EquipmentInstance item, EquipmentInstance boostedItem, Vector2Int position)
         {
             this.dropId = dropId;
             this.item = item;
+            this.boostedItem = boostedItem;
             this.position = position;
         }
     }

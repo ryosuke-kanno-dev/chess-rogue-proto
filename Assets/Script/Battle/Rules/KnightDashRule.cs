@@ -19,9 +19,10 @@ namespace Chebyss.Battle
         public List<Vector2Int> GetMovableTiles(PieceSnapshot piece, BoardState board, PieceMovementPatternSO pattern)
         {
             var knightPattern = (KnightMovementPatternSO)pattern;
+            int maxTier = GetMaxTier(piece, knightPattern);
             var result = new List<Vector2Int>();
 
-            for (int tier = 1; tier <= Mathf.Max(1, knightPattern.maxLMultiplier); tier++)
+            for (int tier = 1; tier <= maxTier; tier++)
             {
                 foreach (var offset in BaseOffsets)
                 {
@@ -38,9 +39,10 @@ namespace Chebyss.Battle
         public List<Vector2Int> GetAttackableTiles(PieceSnapshot piece, BoardState board, PieceMovementPatternSO pattern)
         {
             var knightPattern = (KnightMovementPatternSO)pattern;
+            int maxTier = GetMaxTier(piece, knightPattern);
             var result = new List<Vector2Int>();
 
-            for (int tier = 1; tier <= Mathf.Max(1, knightPattern.maxLMultiplier); tier++)
+            for (int tier = 1; tier <= maxTier; tier++)
             {
                 foreach (var offset in BaseOffsets)
                 {
@@ -62,7 +64,7 @@ namespace Chebyss.Battle
         {
             var knightPattern = (KnightMovementPatternSO)pattern;
 
-            int tierUsed = DetermineTierUsed(attacker.position, target.position, knightPattern.maxLMultiplier);
+            int tierUsed = DetermineTierUsed(attacker.position, target.position, GetMaxTier(attacker, knightPattern));
 
             // アイテム補正はSO基礎値への加算（置き換えではない）。補正が無ければ基礎値のみ。
             float itemRate = attacker.statModifiers.TryGetValue("DistanceBonusRate", out var rate) ? rate : 0f;
@@ -90,6 +92,16 @@ namespace Chebyss.Battle
                 knockbackDestination: null,
                 pursuitMoveCandidates: pursuitCandidates,
                 chainCollisionResult: null);
+        }
+
+        // 突進の最大段数（L字の倍数）＝パターンのmaxLMultiplier + 装備の"DashRangeBonus"（整数に切り捨て）。
+        // 移動・攻撃のマスの列挙と、tierUsed（距離ボーナスの段数）の判定の両方で使う。
+        private static int GetMaxTier(PieceSnapshot piece, KnightMovementPatternSO knightPattern)
+        {
+            int bonus = piece.statModifiers != null && piece.statModifiers.TryGetValue("DashRangeBonus", out var value)
+                ? Mathf.Max(0, (int)value)
+                : 0;
+            return Mathf.Max(1, knightPattern.maxLMultiplier) + bonus;
         }
 
         private static int DetermineTierUsed(Vector2Int from, Vector2Int to, int maxTier)

@@ -46,7 +46,8 @@ namespace Chebyss.Battle
             bool defeated = target.currentHp - damage <= 0;
 
             Vector2Int? knockbackDestination = null;
-            if (!defeated && rookPattern.knockbackDistance > 0)
+            // 吹き飛ばしは確率で発生する。外れたときはダメージだけを与える（吹き飛ばし・連鎖衝突は発生しない）。
+            if (!defeated && rookPattern.knockbackDistance > 0 && UnityEngine.Random.value < rookPattern.knockbackChance)
             {
                 var direction = ClampToUnitDirection(target.position - attacker.position);
                 knockbackDestination = LineMovementHelper.FindPushDestination(

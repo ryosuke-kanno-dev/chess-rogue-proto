@@ -8,7 +8,7 @@ public class PawnGrowthRules
 
     // 仮値。固定1戦（ボス1体・スカウト2体）で実際に進化が確認できる程度の値にしている。
     // Phase2・3の数値スケール統一のタイミングで本調整する。
-    public int xpToEvolveStar2 = 20;
+    public int xpToEvolveStar2 = 15;
 
     // 旧PieceData.EvolveToStar2()と同じ倍率を踏襲（検証済みの値のため）
     public float star2MaxHpMultiplier = 1.6f;

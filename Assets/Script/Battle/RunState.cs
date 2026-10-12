@@ -27,6 +27,16 @@ namespace Chebyss.Battle
         public static int ItemsCollected { get; private set; }
         public static int PiecesLost { get; private set; }
 
+        // ポーンの成長（ラン全体で持ち越す）。PawnRank：1=★1、2=★2
+        public static int PawnXp { get; private set; }
+        public static int PawnRank { get; private set; } = 1;
+
+        public static void SetPawnGrowth(int xp, int rank)
+        {
+            PawnXp = Mathf.Max(0, xp);
+            PawnRank = Mathf.Clamp(rank, 1, 2);
+        }
+
         // 1階の勝利を記録する（バトルごとに1回だけ呼ぶ）
         public static void RecordVictory(int enemiesDefeated, int itemsCollected, int piecesLost)
         {
@@ -78,6 +88,9 @@ namespace Chebyss.Battle
             EnemiesDefeated = 0;
             ItemsCollected = 0;
             PiecesLost = 0;
+
+            PawnXp = 0;
+            PawnRank = 1;
         }
 
         // 全駒種・全スロットの装備のうち、SenseLevelのボーナスの値を合計して整数（四捨五入）で返す。

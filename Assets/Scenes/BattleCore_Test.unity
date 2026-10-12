@@ -1825,7 +1825,7 @@ MonoBehaviour:
   pawnGrowthRules:
     damageShareXpRate: 0.3
     killingBlowXpRate: 0.7
-    xpToEvolveStar2: 20
+    xpToEvolveStar2: 15
     star2MaxHpMultiplier: 1.6
     star2AttackMultiplier: 1.5
   bossPattern: {fileID: 11400000, guid: 3982524b0fc90084f9ec8eb78b1c157d, type: 2}
@@ -1858,6 +1858,10 @@ MonoBehaviour:
   scoutAttack: 3
   uiFontAsset: {fileID: 11400000, guid: 9da3538de23ecf544b327fe22858d5c8, type: 2}
   senseLevelOverride: -1
+  pawnStandardPosition: {x: 4, y: 2}
+  knightStandardPosition: {x: 2, y: 1}
+  bishopStandardPosition: {x: 3, y: 1}
+  rookStandardPosition: {x: 5, y: 1}
   pawnHp: 10
   pawnAttack: 3
   knightHp: 12

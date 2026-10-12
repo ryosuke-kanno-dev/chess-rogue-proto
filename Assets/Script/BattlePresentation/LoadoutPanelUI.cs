@@ -80,16 +80,30 @@ public class LoadoutPanelUI : MonoBehaviour
         openedFrame = Time.frameCount; // 開いたフレームのキー入力（直前の決定キーなど）は無視する
 
         // このバトルで倒れた駒があれば知らせる（装備は既に所持品へ戻っている）
+        string message = "";
         if (casualties != null && casualties.Count > 0)
         {
             var names = new List<string>();
             foreach (var type in casualties) names.Add(GetPieceDisplayName(type));
-            SetMessage($"倒れた駒: {string.Join("、", names)}（装備は所持品に戻りました）");
+            message = $"倒れた駒: {string.Join("、", names)}（装備は所持品に戻りました）";
         }
-        else
+
+        // ポーンの進化は、倒れた駒のメッセージがあれば全角スペースで連結する
+        if (bootstrapper.PawnEvolvedLastBattle)
         {
-            SetMessage("");
+            string evolved = "ポーンが★2に進化しました！";
+            message = message.Length > 0 ? message + "　" + evolved : evolved;
         }
+
+        // 盤面で拾ったことでレアリティが上がった装備の数
+        var lootLedger = bootstrapper.TurnController != null ? bootstrapper.TurnController.LootLedger : null;
+        if (lootLedger != null && lootLedger.BoostedCount >= 1)
+        {
+            string boosted = $"拾得ボーナス: {lootLedger.BoostedCount}個がレアリティ上昇";
+            message = message.Length > 0 ? message + "　" + boosted : boosted;
+        }
+
+        SetMessage(message);
 
         if (EventSystem.current == null)
             Debug.LogWarning("[LoadoutPanelUI] シーンに EventSystem がありません。装備画面のボタンが反応しません。");
@@ -639,6 +653,7 @@ public class LoadoutPanelUI : MonoBehaviour
         float hpFlat = 0f;
         float bonusActions = 0f;
         float distanceRate = 0f;
+        float dashRange = 0f;
 
         foreach (var item in RunState.GetEquipped(type))
         {
@@ -652,6 +667,7 @@ public class LoadoutPanelUI : MonoBehaviour
                     case EquipmentStatType.HpFlat:            hpFlat += bonus.value; break;
                     case EquipmentStatType.BonusActions:      bonusActions += bonus.value; break;
                     case EquipmentStatType.DistanceBonusRate: distanceRate += bonus.value; break;
+                    case EquipmentStatType.DashRangeBonus:    dashRange += bonus.value; break;
                 }
             }
         }
@@ -661,12 +677,45 @@ public class LoadoutPanelUI : MonoBehaviour
 
         int finalHp = baseHp + Mathf.RoundToInt(hpFlat);
 
+        // ★2のポーンは、バトル中のスナップショットと一致するよう、装備込みの値に倍率を掛ける
+        bool isStar2Pawn = type == PieceType.Pawn &&
+            (RunState.PawnRank >= 2 || RunState.PawnXp >= bootstrapper.GetPawnXpToEvolve());
+        if (isStar2Pawn)
+        {
+            finalAttack = Mathf.RoundToInt(finalAttack * bootstrapper.GetPawnStar2AttackMultiplier());
+            finalHp = Mathf.RoundToInt(finalHp * bootstrapper.GetPawnStar2HpMultiplier());
+        }
+
         string text = $"攻撃力 {baseAttack}→{finalAttack} / HP {baseHp}→{finalHp} / 行動回数 1→{finalActions}";
 
         if (type == PieceType.Knight)
         {
             float baseRate = bootstrapper.GetKnightBaseDistanceBonusRate();
-            text += $"\n距離ボーナス {Mathf.RoundToInt(baseRate * 100f)}%→{Mathf.RoundToInt((baseRate + distanceRate) * 100f)}%";
+            int baseDash = bootstrapper.GetKnightBaseDashLevel();
+            int finalDash = baseDash + (int)dashRange; // KnightDashRuleと同じ（整数に切り捨て）
+            text += $"\n距離ボーナス {Mathf.RoundToInt(baseRate * 100f)}%→{Mathf.RoundToInt((baseRate + distanceRate) * 100f)}% / 突進 {baseDash}→{finalDash}段";
+        }
+        else if (type == PieceType.Rook)
+        {
+            text += $"\n吹き飛ばし {Mathf.RoundToInt(bootstrapper.GetRookKnockbackChance() * 100f)}%";
+        }
+        else if (type == PieceType.Pawn)
+        {
+            int moveRange = bootstrapper.GetPawnStar2MoveRange();
+            int attackRange = bootstrapper.GetPawnStar2AttackRange();
+            string rangeText = $"前・左右{moveRange}マス移動 ／ 前方3方向{attackRange}マス攻撃";
+
+            if (isStar2Pawn)
+            {
+                text += $"\n★2 進化済み\n<size=75%>{rangeText}</size>";
+            }
+            else
+            {
+                int need = bootstrapper.GetPawnXpToEvolve();
+                int remaining = Mathf.Max(0, need - RunState.PawnXp);
+                text += $"\n経験値 {RunState.PawnXp}/{need}（進化まであと{remaining}）";
+                text += $"\n<size=75%><color=#808898>進化すると：{rangeText}</color></size>";
+            }
         }
 
         return text;
@@ -695,17 +744,18 @@ public class LoadoutPanelUI : MonoBehaviour
         if (item == null) return "<color=#808898>（空き）</color>";
 
         string text = FormatItem(item);
-        if (type != PieceType.Knight && IsOnlyDistanceBonus(item))
+        if (type != PieceType.Knight && IsOnlyKnightEffects(item))
             text += "\n<color=#FF8080>※この駒では効果なし</color>";
 
         return text;
     }
 
-    private static bool IsOnlyDistanceBonus(EquipmentInstance item)
+    // 装備の効果が全て、ナイト専用の効果（距離ボーナス・突進距離）だけか
+    private static bool IsOnlyKnightEffects(EquipmentInstance item)
     {
         if (item.bonuses == null || item.bonuses.Count == 0) return false;
         foreach (var bonus in item.bonuses)
-            if (bonus.statType != EquipmentStatType.DistanceBonusRate) return false;
+            if (bonus.statType != EquipmentStatType.DistanceBonusRate && bonus.statType != EquipmentStatType.DashRangeBonus) return false;
         return true;
     }
 

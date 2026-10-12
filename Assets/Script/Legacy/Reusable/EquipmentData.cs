@@ -34,7 +34,11 @@ public enum EquipmentStatType
 
   // Chebyss.Battle側のRunState専用（次の階の情報開示レベルを上げる）。駒の能力には影響しない。
   // PieceData.ApplyEquipmentBonus()・BuildBattleStatModifiers()は未知の種類を無視する。
-  SenseLevel
+  SenseLevel,
+
+  // Chebyss.Battle側のRunState専用（ナイトの突進の最大段数を増やす）。駒の能力（PieceData）には影響しない。
+  // PieceData.ApplyEquipmentBonus()・BuildBattleStatModifiers()は未知の種類を無視する。
+  DashRangeBonus
 }
 
 // ==============================

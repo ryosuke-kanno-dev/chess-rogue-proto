@@ -31,6 +31,7 @@ namespace Chebyss.Battle
         private readonly PawnGrowthRules growthRules;
         private readonly PlayerInventory inventory;
         private readonly Func<EnemyArchetype, EquipmentInstance> dropGenerator;
+        private readonly Func<EquipmentInstance, EquipmentInstance> upgradeGenerator;
 
         public BattleTurnController(
             BoardState board,
@@ -39,7 +40,8 @@ namespace Chebyss.Battle
             IReadOnlyDictionary<PieceType, PieceMovementPatternSO> playerPatterns,
             PawnGrowthRules growthRules,
             PlayerInventory inventory = null,
-            Func<EnemyArchetype, EquipmentInstance> dropGenerator = null)
+            Func<EnemyArchetype, EquipmentInstance> dropGenerator = null,
+            Func<EquipmentInstance, EquipmentInstance> upgradeGenerator = null)
         {
             this.board = board;
             this.enemyTurnProcessor = enemyTurnProcessor;
@@ -47,6 +49,7 @@ namespace Chebyss.Battle
             this.growthRules = growthRules;
             this.inventory = inventory;
             this.dropGenerator = dropGenerator;
+            this.upgradeGenerator = upgradeGenerator;
             this.playerRules = playerRules;
             this.playerPatterns = playerPatterns;
             // 1ターン目はAdvanceTurnを呼ばない（tickするものがまだ何もないため）
@@ -214,7 +217,11 @@ namespace Chebyss.Battle
             var item = dropGenerator(target.enemyArchetype);
             if (item == null) return;
 
-            if (!board.TryPlaceDrop(item, pos, out _))
+            // 出現時に、通常版と拾得ボーナス（+1版）を決めておく
+            var boosted = upgradeGenerator?.Invoke(item);
+
+            // 置けない場合は、盤面に置かず通常版を直接獲得する（ドロップ保証）
+            if (!board.TryPlaceDrop(item, boosted, pos, out _))
                 CollectItem(item);
         }
 
@@ -222,7 +229,12 @@ namespace Chebyss.Battle
         private void TryPickupAt(Vector2Int pos)
         {
             if (!board.TryTakeDrop(pos, out var drop)) return;
-            CollectItem(drop.item);
+
+            // 駒が停止して拾得すると、+1版があればそれを獲得する
+            if (drop.boostedItem != null)
+                CollectItem(drop.boostedItem, isBoosted: true);
+            else
+                CollectItem(drop.item);
         }
 
         private void CollectAllRemainingDrops()
@@ -234,13 +246,15 @@ namespace Chebyss.Battle
             }
         }
 
-        private void CollectItem(EquipmentInstance item)
+        private void CollectItem(EquipmentInstance item, bool isBoosted = false)
         {
             if (item == null) return;
 
             inventory?.Add(item);
-            LootLedger.Add(item);
-            Debug.Log($"[Loot] 獲得: [{item.rarity}] {item.itemName}");
+            if (isBoosted) LootLedger.AddBoosted(item);
+            else LootLedger.Add(item);
+
+            Debug.Log($"[Loot] 獲得: [{item.rarity}] {item.itemName}" + (isBoosted ? " (拾得ボーナス)" : ""));
         }
 
         private void ConsumeAction(Vector2Int pos, bool consumeAll = false)

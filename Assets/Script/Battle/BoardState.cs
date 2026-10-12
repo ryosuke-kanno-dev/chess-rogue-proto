@@ -159,7 +159,7 @@ namespace Chebyss.Battle
         // originが空きならそこに、そうでなければoriginに近い順（チェビシェフ距離。
         // 同距離は x→y 順）で最寄りの空きマスにドロップを置く。空きが無ければfalse。
         // 「空き」＝盤面内・駒がいない（IsOccupiedでない）・既にドロップが無い。
-        public bool TryPlaceDrop(EquipmentInstance item, Vector2Int origin, out DropEntry entry)
+        public bool TryPlaceDrop(EquipmentInstance item, EquipmentInstance boostedItem, Vector2Int origin, out DropEntry entry)
         {
             entry = default;
             if (item == null) return false;
@@ -167,7 +167,7 @@ namespace Chebyss.Battle
             var dest = FindDropCell(origin);
             if (!dest.HasValue) return false;
 
-            entry = new DropEntry(nextDropId++, item, dest.Value);
+            entry = new DropEntry(nextDropId++, item, boostedItem, dest.Value);
             drops[dest.Value] = entry;
             return true;
         }

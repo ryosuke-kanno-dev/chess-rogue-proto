@@ -118,6 +118,7 @@ public class BattleBootstrapper : MonoBehaviour
     // 名簿の駒種ごとのPlacementDraggable（クリック配置が配置先の駒を引くために使う）
     private readonly Dictionary<PieceType, PlacementDraggable> draggablesByType = new();
     private bool victoryCommitted;
+    private int pawnRankAtBattleStart = 1;
 
     // 名簿に入れた駒のinstanceIdと駒種の対応（バトル後に「倒れた駒」を判定するために保持する）
     private readonly List<(int instanceId, PieceType type)> rosterEntries = new();
@@ -239,6 +240,8 @@ public class BattleBootstrapper : MonoBehaviour
             ApplyRunEquipment(data, spec.type);
 
             var snapshot = data.CreateSnapshot(Vector2Int.zero);
+            ApplyRunDashRange(snapshot, spec.type);
+            if (spec.type == PieceType.Pawn) ApplyRunPawnGrowth(ref snapshot); // 名簿に保存する前に書き換える
             roster.Add(snapshot);
             rosterEntries.Add((snapshot.instanceId, spec.type));
             rosterTypes.Add(spec.type);
@@ -280,6 +283,64 @@ public class BattleBootstrapper : MonoBehaviour
         data.attack = attack;
     }
 
+    // RunStateの装備のうち「突進距離+」（DashRangeBonus）の合計を、スナップショットのstatModifiersへ設定する。
+    // PieceData側（Legacy）はこの種類を無視するため、スナップショット作成後にここで加算する。
+    // 合計が0のときは追加しない。
+    private void ApplyRunDashRange(PieceSnapshot snapshot, PieceType type)
+    {
+        float total = 0f;
+        foreach (var item in RunState.GetEquipped(type))
+        {
+            if (item == null || item.bonuses == null) continue;
+
+            foreach (var bonus in item.bonuses)
+            {
+                if (bonus.statType == EquipmentStatType.DashRangeBonus)
+                    total += bonus.value;
+            }
+        }
+
+        if (total <= 0f) return;
+
+        // PieceSnapshotFactoryは常にDictionary<string, float>の実体でstatModifiersを構築する
+        if (snapshot.statModifiers is Dictionary<string, float> modifiers)
+        {
+            modifiers.TryGetValue("DashRangeBonus", out var current);
+            modifiers["DashRangeBonus"] = current + total;
+        }
+        else
+        {
+            Debug.LogWarning($"[BattleBootstrapper] {type} の statModifiers を変更できないため、突進距離+の装備が反映されません。");
+        }
+    }
+
+    // ポーンの進化の持ち越し：RunStateが★2（または経験値が閾値以上）なら、スナップショットを★2にする。
+    // BoardState.EvolvePieceToStar2と同じ計算（装備の補正を含んだ値に倍率を掛ける）。
+    // PieceData.EvolveToStar2は呼ばない（BoardStateが唯一の真実で、見た目はBattleVisualSyncが追従する）。
+    private void ApplyRunPawnGrowth(ref PieceSnapshot snapshot)
+    {
+        if (RunState.PawnRank < 2 && RunState.PawnXp < pawnGrowthRules.xpToEvolveStar2) return;
+
+        snapshot.rank = 2;
+        snapshot.maxHp = Mathf.RoundToInt(snapshot.maxHp * pawnGrowthRules.star2MaxHpMultiplier);
+        snapshot.currentHp = snapshot.maxHp;
+        snapshot.attack = Mathf.RoundToInt(snapshot.attack * pawnGrowthRules.star2AttackMultiplier);
+    }
+
+    private bool TryGetPawnInstanceId(out int instanceId)
+    {
+        foreach (var entry in rosterEntries)
+        {
+            if (entry.type == PieceType.Pawn)
+            {
+                instanceId = entry.instanceId;
+                return true;
+            }
+        }
+        instanceId = 0;
+        return false;
+    }
+
     private void ApplyRunEquipment(PieceData data, PieceType type)
     {
         foreach (var item in RunState.GetEquipped(type))
@@ -312,6 +373,25 @@ public class BattleBootstrapper : MonoBehaviour
             case PieceType.Pawn:   return pawnAttack;
             default:               return 0;
         }
+    }
+
+    // ポーンの成長に関する公開メンバ（装備画面が参照する）
+    public bool PawnEvolvedLastBattle { get; private set; }
+
+    public int GetPawnXpToEvolve() => pawnGrowthRules.xpToEvolveStar2;
+    public float GetPawnStar2HpMultiplier() => pawnGrowthRules.star2MaxHpMultiplier;
+    public float GetPawnStar2AttackMultiplier() => pawnGrowthRules.star2AttackMultiplier;
+    public int GetPawnStar2MoveRange() => pawnPattern != null ? pawnPattern.star2MoveRange : 2;
+    public int GetPawnStar2AttackRange() => pawnPattern != null ? pawnPattern.star2AttackRange : 2;
+
+    public float GetRookKnockbackChance()
+    {
+        return rookPattern != null ? rookPattern.knockbackChance : 0f;
+    }
+
+    public int GetKnightBaseDashLevel()
+    {
+        return knightPattern != null ? knightPattern.maxLMultiplier : 1;
     }
 
     public float GetKnightBaseDistanceBonusRate()
@@ -358,6 +438,16 @@ public class BattleBootstrapper : MonoBehaviour
             RunState.MarkPieceDead(entry.type);
         }
         LastCasualties = casualties;
+
+        // ポーンの成長の確定：生存していれば、経験値とrankをRunStateへ持ち越す。
+        // 倒れた場合は、このバトルで得た経験値と進化を破棄する（RunStateは更新しない）。
+        PawnEvolvedLastBattle = false;
+        if (TurnController != null && TryGetPawnInstanceId(out var pawnId) &&
+            Board.TryFindPieceById(pawnId, out var pawn, out _, out _))
+        {
+            RunState.SetPawnGrowth(TurnController.ExperienceLedger.GetXp(pawnId), pawn.rank);
+            PawnEvolvedLastBattle = pawn.rank > pawnRankAtBattleStart;
+        }
 
         int enemyCount = currentEncounter != null ? currentEncounter.enemies.Count : 0;
         int itemCount = TurnController != null ? TurnController.LootLedger.Collected.Count : 0;
@@ -638,7 +728,17 @@ public class BattleBootstrapper : MonoBehaviour
         TurnController = new BattleTurnController(
             Board, enemyTurnProcessor, playerRules, playerPatterns, pawnGrowthRules,
             Inventory,
-            a => BattleEquipmentGenerator.GenerateRandomEquipment(DropRules.GetQualityTier(a)));
+            a => BattleEquipmentGenerator.GenerateRandomEquipment(DropRules.GetQualityTier(a)),
+            BattleEquipmentGenerator.CreateUpgraded);
+
+        // ポーンの経験値を持ち越す（このバトルの経験値は、持ち越した値に積み上がる）
+        if (TryGetPawnInstanceId(out var pawnId))
+        {
+            TurnController.ExperienceLedger.AddXp(pawnId, RunState.PawnXp);
+
+            if (Board.TryFindPieceById(pawnId, out var pawnAtStart, out _, out _))
+                pawnRankAtBattleStart = pawnAtStart.rank;
+        }
 
         intentDisplay.UpdateIntents(Board, TurnController.EnemyTurnProcessor);
     }

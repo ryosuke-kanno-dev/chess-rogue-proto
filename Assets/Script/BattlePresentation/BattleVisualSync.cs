@@ -105,7 +105,7 @@ public class BattleVisualSync : MonoBehaviour
 
             var markerObject = new GameObject($"DropMarker_{drop.dropId}");
             var marker = markerObject.AddComponent<BoardDropMarker>();
-            marker.Initialize(drop.dropId, drop.item, tile.transform.position + Vector3.up * 0.45f);
+            marker.Initialize(drop.dropId, drop.item, drop.boostedItem, tile.transform.position + Vector3.up * 0.45f);
             dropMarkers[drop.dropId] = marker;
         }
 

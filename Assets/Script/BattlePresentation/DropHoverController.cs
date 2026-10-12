@@ -88,7 +88,7 @@ public class DropHoverController : MonoBehaviour
         if (shownDropId != drop.dropId)
         {
             shownDropId = drop.dropId;
-            TooltipUI.Instance.Show(BuildName(drop.item), BuildDescription(drop.item), screenPos);
+            TooltipUI.Instance.Show(BuildName(drop.item), BuildDescription(drop), screenPos);
         }
         else
         {
@@ -138,7 +138,8 @@ public class DropHoverController : MonoBehaviour
         return $"[{item.rarity}] {item.itemName}";
     }
 
-    private static string BuildDescription(EquipmentInstance item)
+    // 効果の一覧（1件ごとに<nobr>で囲み、件の途中では折り返さない）
+    private static string FormatEffects(EquipmentInstance item)
     {
         var sb = new StringBuilder();
         if (item.bonuses != null)
@@ -146,11 +147,31 @@ public class DropHoverController : MonoBehaviour
             foreach (var bonus in item.bonuses)
             {
                 if (sb.Length > 0) sb.Append(' ');
-                // ボーナスの途中で折り返さない（ボーナス同士の区切りの空白では折り返してよい）
                 sb.Append("<nobr>").Append(BattleEquipmentGenerator.FormatBonus(bonus)).Append("</nobr>");
             }
         }
-        sb.Append('\n').Append("駒を止めると拾得");
+        return sb.ToString();
+    }
+
+    // 通常版の効果に続けて、拾得ボーナス（+1版）の内容を表示する
+    private static string BuildDescription(DropEntry drop)
+    {
+        var sb = new StringBuilder();
+        sb.Append(FormatEffects(drop.item)).Append('\n');
+
+        if (drop.boostedItem != null)
+        {
+            var boosted = drop.boostedItem;
+            sb.Append("<color=#FFE060>拾うと：</color>")
+              .Append($"[{boosted.rarity}] {boosted.itemName}　{FormatEffects(boosted)}")
+              .Append('\n')
+              .Append("駒を止めると拾得（勝利時の自動回収は通常版のまま）");
+        }
+        else
+        {
+            sb.Append("最高ランクのため、拾得ボーナスはありません");
+        }
+
         return sb.ToString();
     }
 }
