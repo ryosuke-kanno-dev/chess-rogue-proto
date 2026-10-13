@@ -4,7 +4,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Chebyss.Battle;
 
-// マウスだけで遊べるようにするための画面下部のボタン（待機・キャンセル）。
+// マウスだけで遊べるようにするための画面下部のボタン（キャンセル）。
 // BattlePhaseActionButton（配置完了／ターン終了）がシーンに無い場合のみ、右下に同等のボタンも作る。
 // UIはすべて実行時にコードで生成する。
 public class BattleControlsUI : MonoBehaviour
@@ -14,7 +14,6 @@ public class BattleControlsUI : MonoBehaviour
     private BattleInputController battleInput;
 
     private GameObject controlsRow;
-    private Button waitButton;
     private Button cancelButton;
     private TextMeshProUGUI cancelLabel;
 
@@ -45,12 +44,11 @@ public class BattleControlsUI : MonoBehaviour
 
         if (bootstrapper.IsPlacementPhase)
         {
-            // 配置フェーズ：待機は出さない。駒を選択中のときだけ「選択解除」を出す
+            // 配置フェーズ：駒を選択中のときだけ「選択解除」を出す
             var selected = bootstrapper.PlacementInput != null ? bootstrapper.PlacementInput.SelectedType : null;
             bool hasSelection = selected.HasValue;
 
             controlsRow.SetActive(hasSelection);
-            waitButton.gameObject.SetActive(false);
             cancelButton.gameObject.SetActive(hasSelection);
             cancelButton.interactable = true;
             SetLabel(cancelLabel, "選択解除");
@@ -61,8 +59,6 @@ public class BattleControlsUI : MonoBehaviour
             bool isPursuing = battleInput != null && battleInput.IsPursuing;
 
             controlsRow.SetActive(true);
-            waitButton.gameObject.SetActive(true);
-            waitButton.interactable = hasSelection;
             cancelButton.gameObject.SetActive(true);
             cancelButton.interactable = hasSelection || isPursuing;
             SetLabel(cancelLabel, isPursuing ? "追撃しない" : "キャンセル");
@@ -175,12 +171,6 @@ public class BattleControlsUI : MonoBehaviour
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         controlsRow = row.gameObject;
-
-        waitButton = CreateButton("WaitButton", row, "待機", new Color(0.20f, 0.32f, 0.52f, 1f), 220f, 64f, 30f, out _);
-        waitButton.onClick.AddListener(() =>
-        {
-            if (battleInput != null) battleInput.RequestWait();
-        });
 
         cancelButton = CreateButton("CancelButton", row, "キャンセル", new Color(0.42f, 0.26f, 0.26f, 1f), 220f, 64f, 30f, out cancelLabel);
         cancelButton.onClick.AddListener(OnCancelClicked);

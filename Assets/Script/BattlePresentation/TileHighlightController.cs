@@ -17,8 +17,7 @@ public class TileHighlightController : MonoBehaviour
         lastMovable = turnController.GetMovableTiles(piecePos);
         lastAttackable = turnController.GetAttackableTiles(piecePos);
 
-        // 選択中の駒自身のマス（再クリックで待機）も示す。クリックしても何も
-        // ハイライトされないマスに見えると、待機できることに気づきにくいため。
+        // 選択中の駒の位置（どの駒を選択しているか）を示す。
         lastSelfPos = piecePos;
         boardGenerator.GetTile(piecePos)?.SetHighlight(HighlightType.SelectedSelf);
 

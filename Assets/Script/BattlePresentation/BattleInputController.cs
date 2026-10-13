@@ -140,17 +140,6 @@ public class BattleInputController : MonoBehaviour
         return byX != 0 ? byX : a.y.CompareTo(b.y);
     }
 
-    // 「選択中の駒自身を再クリックしたとき」と同じ処理（待機）
-    public void RequestWait()
-    {
-        var turnController = bootstrapper.TurnController;
-        if (turnController == null || turnController.CurrentPhase != BattlePhase.PlayerTurn) return;
-        if (!selectedPos.HasValue) return;
-
-        turnController.Wait(selectedPos.Value);
-        Deselect();
-    }
-
     // 追撃移動の選択中は辞退、駒を選択中なら選択解除。どちらでもなければ何もしない。
     public void RequestCancel()
     {
@@ -170,9 +159,8 @@ public class BattleInputController : MonoBehaviour
 
             if (cell == from)
             {
-                // 選択中の駒自身を再クリック → 待機
-                turnController.Wait(from);
-                Deselect();
+                // 選択中の駒自身をクリックしても何もしない（選択を維持する。待機という操作はない）。
+                // キーボードの決定（RequestActivateCell）も同じ処理を通るため、Enterでも何も起きない。
                 return;
             }
 

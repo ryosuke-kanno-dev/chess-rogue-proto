@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Chebyss.Battle
 {
     /// <summary>
-    /// プレイヤーターン⇔敵ターンの進行と、駒1体分の行動（移動・攻撃・待機・追撃移動）を
+    /// プレイヤーターン⇔敵ターンの進行と、駒1体分の行動（移動・攻撃・追撃移動）を
     /// 管理するステートマシン。MonoBehaviourに依存しない（バトル全体をシーンなしで
     /// シミュレート・テストできる状態を保つため）。
     /// 移動・攻撃対象マスの妥当性チェックはこのクラスの責務（BoardStateは許可判断をしない）。
@@ -126,14 +126,6 @@ namespace Chebyss.Battle
             if (CurrentPhase != BattlePhase.PlayerTurn) return ActionResult.WrongPhase;
             board.ApplyMove(true, knightPos, destination);
             TryPickupAt(destination); // 撃破マスへの追撃移動で、そのドロップを即座に拾得できる
-            return ActionResult.Success;
-        }
-
-        public ActionResult Wait(Vector2Int piecePos)
-        {
-            if (CurrentPhase != BattlePhase.PlayerTurn) return ActionResult.WrongPhase;
-            if (!board.TryGetPlayerPiece(piecePos, out _)) return ActionResult.InvalidTarget;
-            ConsumeAction(piecePos, consumeAll: true);
             return ActionResult.Success;
         }
 

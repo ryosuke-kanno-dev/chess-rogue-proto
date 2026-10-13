@@ -2,6 +2,7 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 using Chebyss.Battle;
 
 // カーソル下のマスにドロップがあれば、TooltipUIで名前・効果を表示する。
@@ -15,6 +16,12 @@ public class DropHoverController : MonoBehaviour
     // 自分が現在表示中のドロップID（-1 = 何も表示していない）
     private int shownDropId = -1;
     private bool warnedMissingTooltip;
+
+    // ドロップの上から外れても、この秒数だけはツールチップを消さない（点滅の防止）
+    private const float HideGraceSeconds = 0.12f;
+    private float hideDeadline = -1f;
+
+    private bool tooltipPrepared;
 
     public void Initialize(BattleBootstrapper bootstrapper, BoardGenerator boardGenerator)
     {
@@ -47,23 +54,23 @@ public class DropHoverController : MonoBehaviour
             var tile = boardGenerator != null ? boardGenerator.GetTile(cell) : null;
             if (tile == null)
             {
-                HideOwnTooltip();
+                ScheduleHide();
                 return;
             }
             screenPos = mainCamera.WorldToScreenPoint(tile.transform.position);
         }
         else
         {
-            // UI上ではドロップ判定を行わない（自分の表示が残っていれば消す）
+            // UI上ではドロップ判定を行わない（猶予の後に自分の表示を消す）
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
             {
-                HideOwnTooltip();
+                ScheduleHide();
                 return;
             }
 
             if (!TryResolveCellUnderCursor(out cell))
             {
-                HideOwnTooltip();
+                ScheduleHide();
                 return;
             }
             screenPos = Mouse.current.position.ReadValue();
@@ -71,7 +78,7 @@ public class DropHoverController : MonoBehaviour
 
         if (!turnController.TryGetDropAt(cell, out var drop))
         {
-            HideOwnTooltip();
+            ScheduleHide();
             return;
         }
 
@@ -85,13 +92,20 @@ public class DropHoverController : MonoBehaviour
             return;
         }
 
+        PrepareTooltipUI();
+
+        // ドロップの上にいる間は、消す予定を取り消す（猶予の間に戻った場合は消さず、再表示もしない）
+        hideDeadline = -1f;
+
         if (shownDropId != drop.dropId)
         {
+            // 別のドロップに移った場合は、猶予なしで新しい内容に切り替える
             shownDropId = drop.dropId;
             TooltipUI.Instance.Show(BuildName(drop.item), BuildDescription(drop), screenPos);
         }
         else
         {
+            // 同じドロップの上にいる間は、位置だけを更新する
             TooltipUI.Instance.UpdatePosition(screenPos);
         }
     }
@@ -101,8 +115,57 @@ public class DropHoverController : MonoBehaviour
         HideOwnTooltip();
     }
 
+    // ドロップの上から外れたとき：猶予（HideGraceSeconds）が過ぎるまで待ってから消す
+    private void ScheduleHide()
+    {
+        if (shownDropId < 0) return;
+
+        if (hideDeadline < 0f)
+        {
+            hideDeadline = Time.unscaledTime + HideGraceSeconds;
+            return;
+        }
+
+        if (Time.unscaledTime >= hideDeadline) HideOwnTooltip();
+    }
+
+    // ツールチップがクリックやホバーの判定（IsPointerOverGameObject）を受け取らないようにする。
+    // TooltipUI（Legacy）は変更せず、その配下を検索して一度だけ設定する。
+    // 他のボタン等（Selectable）を含む部分には触れない。
+    private void PrepareTooltipUI()
+    {
+        if (tooltipPrepared) return;
+        tooltipPrepared = true;
+
+        var root = TooltipUI.Instance.transform;
+
+        foreach (var graphic in root.GetComponentsInChildren<Graphic>(true))
+        {
+            if (graphic.GetComponentInParent<Selectable>() != null) continue;
+            graphic.raycastTarget = false;
+        }
+
+        // panelRootはprivateのため、TooltipUIの配下から探す。
+        // TooltipUI自身と、その直下の子（panelRootの候補）に、レイキャストを受けないCanvasGroupを付ける。
+        DisableRaycastsWithCanvasGroup(root.gameObject);
+        for (int i = 0; i < root.childCount; i++)
+            DisableRaycastsWithCanvasGroup(root.GetChild(i).gameObject);
+    }
+
+    private static void DisableRaycastsWithCanvasGroup(GameObject target)
+    {
+        if (target.GetComponentInChildren<Selectable>(true) != null) return;
+
+        var group = target.GetComponent<CanvasGroup>();
+        if (group == null) group = target.AddComponent<CanvasGroup>();
+
+        group.blocksRaycasts = false;
+        group.interactable = false;
+    }
+
     private void HideOwnTooltip()
     {
+        hideDeadline = -1f;
         if (shownDropId < 0) return;
         shownDropId = -1;
         if (TooltipUI.Instance != null) TooltipUI.Instance.Hide();
