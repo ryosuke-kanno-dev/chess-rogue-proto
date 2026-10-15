@@ -20,12 +20,15 @@ public class BattleControlsUI : MonoBehaviour
     private Button phaseButton;
     private TextMeshProUGUI phaseLabel;
     private TextMeshProUGUI keyHintText;
+    private int lastHintState = -1;
+    private bool hintDirty = true;
 
     public void Initialize(BattleBootstrapper bootstrapper, TMP_FontAsset font)
     {
         this.bootstrapper = bootstrapper;
         this.font = font;
         BuildUI();
+        KeyBindings.Changed += OnKeyBindingsChanged;
     }
 
     void Start()
@@ -73,33 +76,64 @@ public class BattleControlsUI : MonoBehaviour
         UpdateKeyHint(isPlayerTurn);
     }
 
-    // キー操作のヒント（状況に応じて文言を切り替える。敵ターン・勝敗確定後は非表示）
+    // キー操作のヒント（状況に応じて文言を切り替える。敵ターン・勝敗確定後は非表示）。
+    // キー名はKeyBindingsから組み立て、状況かキー設定が変わったときだけ更新する。
     private void UpdateKeyHint(bool isPlayerTurn)
     {
-        string hint = null;
+        int state = -1;
 
         if (bootstrapper.IsPlacementPhase)
         {
             bool hasSelection = bootstrapper.PlacementInput != null && bootstrapper.PlacementInput.SelectedType.HasValue;
-            hint = hasSelection
-                ? "[Enter] ここに置く　[矢印/WASD] カーソル　[Tab] 次の駒　[Esc] 選択解除　[Space] 配置完了"
-                : "[Tab] 駒を選ぶ　[矢印/WASD] カーソル　[Enter] 駒を選ぶ　[Space] 配置完了";
+            state = hasSelection ? 1 : 2;
         }
         else if (isPlayerTurn)
         {
             bool hasSelection = battleInput != null && battleInput.HasSelection;
             bool isPursuing = battleInput != null && battleInput.IsPursuing;
-
-            if (isPursuing)
-                hint = "[Tab] 追撃先　[Enter] 追撃　[Esc] 追撃しない　[Space] ターン終了";
-            else if (hasSelection)
-                hint = "[矢印/WASD] カーソル　[Tab] 移動・攻撃先　[Enter] 決定　[Esc] キャンセル　[Space] ターン終了";
-            else
-                hint = "[矢印/WASD] カーソル　[Tab] 次の駒　[Enter] 駒を選ぶ　[Space] ターン終了";
+            state = isPursuing ? 3 : hasSelection ? 4 : 5;
         }
 
-        keyHintText.gameObject.SetActive(hint != null);
-        if (hint != null) SetLabel(keyHintText, hint);
+        keyHintText.gameObject.SetActive(state >= 0);
+        if (state < 0)
+        {
+            lastHintState = -1;
+            return;
+        }
+
+        if (state == lastHintState && !hintDirty) return;
+        lastHintState = state;
+        hintDirty = false;
+
+        SetLabel(keyHintText, BuildKeyHint(state));
+    }
+
+    private static string BuildKeyHint(int state)
+    {
+        string move = KeyBindings.GetMoveLabel();
+        string confirm = KeyBindings.GetLabel(GameAction.Confirm);
+        string cancel = KeyBindings.GetLabel(GameAction.Cancel);
+        string next = KeyBindings.GetLabel(GameAction.NextPiece);
+        string endTurn = KeyBindings.GetLabel(GameAction.EndTurn);
+
+        switch (state)
+        {
+            case 1: return $"[{confirm}] ここに置く　[{move}] カーソル　[{next}] 次の駒　[{cancel}] 選択解除　[{endTurn}] 配置完了";
+            case 2: return $"[{next}] 駒を選ぶ　[{move}] カーソル　[{confirm}] 駒を選ぶ　[{endTurn}] 配置完了";
+            case 3: return $"[{next}] 追撃先　[{confirm}] 追撃　[{cancel}] 追撃しない　[{endTurn}] ターン終了";
+            case 4: return $"[{move}] カーソル　[{next}] 移動・攻撃先　[{confirm}] 決定　[{cancel}] キャンセル　[{endTurn}] ターン終了";
+            default: return $"[{move}] カーソル　[{next}] 次の駒　[{confirm}] 駒を選ぶ　[{endTurn}] ターン終了";
+        }
+    }
+
+    private void OnKeyBindingsChanged()
+    {
+        hintDirty = true;
+    }
+
+    void OnDestroy()
+    {
+        KeyBindings.Changed -= OnKeyBindingsChanged;
     }
 
     private void UpdatePhaseButton(bool isPlayerTurn)

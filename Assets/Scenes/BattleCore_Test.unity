@@ -1858,6 +1858,8 @@ MonoBehaviour:
   scoutAttack: 3
   uiFontAsset: {fileID: 11400000, guid: 9da3538de23ecf544b327fe22858d5c8, type: 2}
   senseLevelOverride: -1
+  appraisalLevelOverride: -1
+  debugBonusSkillPoints: 0
   pawnStandardPosition: {x: 4, y: 2}
   knightStandardPosition: {x: 2, y: 1}
   bishopStandardPosition: {x: 3, y: 1}

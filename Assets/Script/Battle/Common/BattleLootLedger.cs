@@ -13,6 +13,9 @@ namespace Chebyss.Battle
         // 拾得ボーナス（レアリティ+1版）として獲得した数
         public int BoostedCount { get; private set; }
 
+        // そのうち、スキルでレアリティが+2になった数
+        public int DoubleBoostedCount { get; private set; }
+
         public void Add(EquipmentInstance item)
         {
             if (item == null) return;
@@ -20,11 +23,12 @@ namespace Chebyss.Battle
         }
 
         // 拾得ボーナスの+1版を記録する（Collectedにも追加し、BoostedCountを+1する）
-        public void AddBoosted(EquipmentInstance item)
+        public void AddBoosted(EquipmentInstance item, bool isDoubleBoosted = false)
         {
             if (item == null) return;
             collected.Add(item);
             BoostedCount++;
+            if (isDoubleBoosted) DoubleBoostedCount++;
         }
     }
 }

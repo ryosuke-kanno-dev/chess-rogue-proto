@@ -28,6 +28,9 @@ namespace Chebyss.Battle
 
         public BattleLootLedger LootLedger { get; } = new BattleLootLedger();
 
+        // スキル「拾得ボーナス強化」：駒で拾ったとき、この確率でレアリティが+1ではなく+2になる
+        public float PickupDoubleBoostChance { get; set; }
+
         private readonly PawnGrowthRules growthRules;
         private readonly PlayerInventory inventory;
         private readonly Func<EnemyArchetype, EquipmentInstance> dropGenerator;
@@ -224,7 +227,23 @@ namespace Chebyss.Battle
 
             // 駒が停止して拾得すると、+1版があればそれを獲得する
             if (drop.boostedItem != null)
-                CollectItem(drop.boostedItem, isBoosted: true);
+            {
+                var gained = drop.boostedItem;
+                bool isDoubleBoosted = false;
+
+                if (PickupDoubleBoostChance > 0f && UnityEngine.Random.value < PickupDoubleBoostChance)
+                {
+                    // さらにもう1段上げる（既に最高ランクで上げられない場合は、+1版のまま）
+                    var upgraded = BattleEquipmentGenerator.CreateUpgraded(drop.boostedItem);
+                    if (upgraded != null)
+                    {
+                        gained = upgraded;
+                        isDoubleBoosted = true;
+                    }
+                }
+
+                CollectItem(gained, isBoosted: true, isDoubleBoosted: isDoubleBoosted);
+            }
             else
                 CollectItem(drop.item);
         }
@@ -238,15 +257,15 @@ namespace Chebyss.Battle
             }
         }
 
-        private void CollectItem(EquipmentInstance item, bool isBoosted = false)
+        private void CollectItem(EquipmentInstance item, bool isBoosted = false, bool isDoubleBoosted = false)
         {
             if (item == null) return;
 
             inventory?.Add(item);
-            if (isBoosted) LootLedger.AddBoosted(item);
+            if (isBoosted) LootLedger.AddBoosted(item, isDoubleBoosted);
             else LootLedger.Add(item);
 
-            Debug.Log($"[Loot] 獲得: [{item.rarity}] {item.itemName}" + (isBoosted ? " (拾得ボーナス)" : ""));
+            Debug.Log($"[Loot] 獲得: [{item.rarity}] {item.itemName}" + (isDoubleBoosted ? " (拾得ボーナス強化)" : isBoosted ? " (拾得ボーナス)" : ""));
         }
 
         private void ConsumeAction(Vector2Int pos, bool consumeAll = false)

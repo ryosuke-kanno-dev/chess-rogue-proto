@@ -31,6 +31,13 @@ public class DropHoverController : MonoBehaviour
 
     void Update()
     {
+        // 設定画面を開いている間は、ツールチップを出さない
+        if (BattleSettingsPanelUI.IsOpen)
+        {
+            HideOwnTooltip();
+            return;
+        }
+
         var turnController = bootstrapper != null ? bootstrapper.TurnController : null;
         var keyboardCursor = bootstrapper != null ? bootstrapper.KeyboardCursor : null;
         bool useKeyboard = keyboardCursor != null && keyboardCursor.IsActive;
@@ -101,7 +108,7 @@ public class DropHoverController : MonoBehaviour
         {
             // 別のドロップに移った場合は、猶予なしで新しい内容に切り替える
             shownDropId = drop.dropId;
-            TooltipUI.Instance.Show(BuildName(drop.item), BuildDescription(drop), screenPos);
+            TooltipUI.Instance.Show(BuildName(drop.item), BuildDescription(drop, bootstrapper.GetAppraisalLevel()), screenPos);
         }
         else
         {
@@ -217,7 +224,7 @@ public class DropHoverController : MonoBehaviour
     }
 
     // 通常版の効果に続けて、拾得ボーナス（+1版）の内容を表示する
-    private static string BuildDescription(DropEntry drop)
+    private static string BuildDescription(DropEntry drop, int appraisalLevel)
     {
         var sb = new StringBuilder();
         sb.Append(FormatEffects(drop.item)).Append('\n');
@@ -225,8 +232,18 @@ public class DropHoverController : MonoBehaviour
         if (drop.boostedItem != null)
         {
             var boosted = drop.boostedItem;
+
+            // 鑑定レベルによって、拾った後の装備の情報の開示を切り替える
+            string preview;
+            if (appraisalLevel >= 2)
+                preview = $"[{boosted.rarity}] {boosted.itemName}　{FormatEffects(boosted)}";
+            else if (appraisalLevel == 1)
+                preview = $"[{boosted.rarity}] ？？？";
+            else
+                preview = "？（鑑定スキルで判明）";
+
             sb.Append("<color=#FFE060>拾うと：</color>")
-              .Append($"[{boosted.rarity}] {boosted.itemName}　{FormatEffects(boosted)}")
+              .Append(preview)
               .Append('\n')
               .Append("駒を止めると拾得（勝利時の自動回収は通常版のまま）");
         }

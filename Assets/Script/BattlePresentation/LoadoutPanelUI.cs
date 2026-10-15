@@ -51,6 +51,13 @@ public class LoadoutPanelUI : MonoBehaviour
 
     // キーボード操作用
     private Button nextBattleButton;
+    private TextMeshProUGUI keyHintText;
+
+    // スキルボタン（キングのスキルツリーを開く）
+    private TextMeshProUGUI skillButtonLabel;
+    private int lastSkillPoints = -1;
+    private bool lastCanAcquire;
+    private bool wasSkillTreeOpen;
     private ScrollRect inventoryScroll;
     private int openedFrame = -1;
     private GameObject lastSelectedForScroll;
@@ -103,6 +110,13 @@ public class LoadoutPanelUI : MonoBehaviour
             message = message.Length > 0 ? message + "　" + boosted : boosted;
         }
 
+        // 勝利で得たスキルポイント
+        if (bootstrapper.LastSkillPointsGained >= 1)
+        {
+            string skillPoints = $"スキルポイント +{bootstrapper.LastSkillPointsGained}（残り {RunState.SkillPoints}）";
+            message = message.Length > 0 ? message + "　" + skillPoints : skillPoints;
+        }
+
         SetMessage(message);
 
         if (EventSystem.current == null)
@@ -149,6 +163,7 @@ public class LoadoutPanelUI : MonoBehaviour
         BuildNextBattleButton(root);
         BuildMessageText(root);
         BuildKeyHintText(root);
+        BuildSkillButton(root);
 
         canvasObject.SetActive(false);
     }
@@ -409,24 +424,37 @@ public class LoadoutPanelUI : MonoBehaviour
     {
         if (canvasObject == null || !canvasObject.activeInHierarchy) return;
 
+        // スキルツリーを閉じたら、スキル取得で変わる表示（攻撃力・HP・次の階の情報）を更新する
+        bool skillTreeOpen = SkillTreePanelUI.IsOpen;
+        if (wasSkillTreeOpen && !skillTreeOpen) Refresh();
+        wasSkillTreeOpen = skillTreeOpen;
+
+        RefreshSkillButton();
+
+        // スキルツリー・設定画面を開いている間は、ショートカットキーも選択の維持も行わない
+        if (skillTreeOpen || BattleSettingsPanelUI.IsOpen) return;
+
         EnsureKeyboardSelection();
         EnsureSelectedInventoryItemVisible();
 
-        var keyboard = Keyboard.current;
-        if (keyboard == null) return;
         if (Time.frameCount <= openedFrame) return;
 
-        if (keyboard.spaceKey.wasPressedThisFrame && nextBattleButton != null)
+        if (KeyBindings.WasPressed(GameAction.EndTurn) && nextBattleButton != null)
         {
-            // Space：次の階へ
+            // 「ターン終了・配置完了・次へ」のキー：次の階へ
             nextBattleButton.onClick.Invoke();
         }
-        else if ((keyboard.escapeKey.wasPressedThisFrame || keyboard.backspaceKey.wasPressedThisFrame) && selectedItem != null)
+        else if (KeyBindings.WasPressed(GameAction.Cancel) && selectedItem != null)
         {
-            // Esc／Backspace：所持品の選択を解除する
+            // 「キャンセル」のキー：所持品の選択を解除する
             selectedItem = null;
             Refresh();
         }
+    }
+
+    void OnDestroy()
+    {
+        KeyBindings.Changed -= RefreshKeyHint;
     }
 
     // 選択中のUIが無い（または破棄・非表示になった）ときに、最初に見つかったボタンを選択する。
@@ -498,18 +526,70 @@ public class LoadoutPanelUI : MonoBehaviour
         if (delta != 0f) inventoryContent.position += new Vector3(0f, delta, 0f);
     }
 
+    // NextBattleButtonの左隣（メッセージ・操作ヒントと重ならない位置）のスキルボタン
+    private void BuildSkillButton(RectTransform root)
+    {
+        var button = CreateButton("SkillButton", root, out skillButtonLabel, out _, new Color(0.30f, 0.26f, 0.12f, 1f), 26f);
+        Stretch(button.GetComponent<RectTransform>(), new Vector2(0.50f, 0.015f), new Vector2(0.68f, 0.085f));
+        skillButtonLabel.alignment = TextAlignmentOptions.Center;
+
+        button.onClick.AddListener(() =>
+        {
+            if (bootstrapper.SkillTree != null) bootstrapper.SkillTree.Open();
+        });
+    }
+
+    // 「スキル（SP n）」。取得できるスキルがあるとき（SP>0かつ取得可能なスキルが1つ以上）は黄色にする。
+    private void RefreshSkillButton()
+    {
+        if (skillButtonLabel == null) return;
+
+        int skillPoints = RunState.SkillPoints;
+        bool canAcquire = skillPoints > 0 && AnySkillAcquirable();
+
+        if (skillPoints == lastSkillPoints && canAcquire == lastCanAcquire) return;
+        lastSkillPoints = skillPoints;
+        lastCanAcquire = canAcquire;
+
+        skillButtonLabel.text = $"スキル（SP {skillPoints}）";
+        skillButtonLabel.color = canAcquire ? new Color(1f, 0.9f, 0.2f) : Color.white;
+    }
+
+    private static bool AnySkillAcquirable()
+    {
+        foreach (var skill in KingSkillCatalog.All)
+        {
+            if (RunState.CanAcquireSkill(skill.id)) return true;
+        }
+        return false;
+    }
+
     private void BuildKeyHintText(RectTransform root)
     {
-        var hint = CreateText("LoadoutKeyHintText", root, "[矢印/WASD] 移動　[Enter] 決定　[Esc] 選択解除　[Space] 次の階へ",
+        // 矢印／WASDでの移動とEnterでの決定はUnity UI標準のまま（再割り当ての対象外）。
+        // 選択解除・次の階へは、キー設定に合わせて表示する。
+        keyHintText = CreateText("LoadoutKeyHintText", root, BuildKeyHintString(),
             20f, TextAlignmentOptions.MidlineLeft, new Color(0.75f, 0.78f, 0.88f), true);
-        Stretch(hint.rectTransform, new Vector2(0.02f, 0f), new Vector2(0.68f, 0.035f));
+        Stretch(keyHintText.rectTransform, new Vector2(0.02f, 0f), new Vector2(0.49f, 0.035f));
+
+        KeyBindings.Changed += RefreshKeyHint;
+    }
+
+    private static string BuildKeyHintString()
+    {
+        return $"[矢印] 移動　[Enter] 決定　[{KeyBindings.GetLabel(GameAction.Cancel)}] 選択解除　[{KeyBindings.GetLabel(GameAction.EndTurn)}] 次の階へ";
+    }
+
+    private void RefreshKeyHint()
+    {
+        if (keyHintText != null) keyHintText.text = BuildKeyHintString();
     }
 
     // NextBattleButtonの左側の空き領域に1行のメッセージを出す
     private void BuildMessageText(RectTransform root)
     {
         messageText = CreateText("LoadoutMessageText", root, "", 24f, TextAlignmentOptions.MidlineLeft, new Color(1f, 0.9f, 0.6f), true);
-        Stretch(messageText.rectTransform, new Vector2(0.02f, 0.015f), new Vector2(0.68f, 0.085f));
+        Stretch(messageText.rectTransform, new Vector2(0.02f, 0.015f), new Vector2(0.49f, 0.085f));
     }
 
     private void SetMessage(string text)
@@ -596,6 +676,7 @@ public class LoadoutPanelUI : MonoBehaviour
         nextFloorInfoText.text = BuildNextFloorInfo();
         RefreshMap(Mathf.Clamp(bootstrapper.GetSenseLevel(), 0, RunState.MaxSenseLevel));
         EnsureKeyboardSelection();
+        RefreshSkillButton();
     }
 
     private void RefreshInventory()
@@ -767,7 +848,7 @@ public class LoadoutPanelUI : MonoBehaviour
         int level = Mathf.Clamp(bootstrapper.GetSenseLevel(), 0, RunState.MaxSenseLevel);
         string senseNote = bootstrapper.IsSenseLevelOverridden
             ? "<color=#FF8080>（確認用に固定中）</color>"
-            : "<color=#8890A0>（装備の「感知」の合計。上げるほど次の階の情報が増える）</color>";
+            : "<color=#8890A0>（スキル「感知」のレベル。上げるほど次の階の情報が増える）</color>";
 
         var sb = new StringBuilder();
         string bossRank = EnemyNames.GetBossRankName(RunState.CurrentFloor, bootstrapper.BossFloorInterval, bootstrapper.FinalFloor);
@@ -838,7 +919,8 @@ public class LoadoutPanelUI : MonoBehaviour
         {
             int kingDamage = bootstrapper.GetEnemyKingDamage(key.archetype);
             string kingText = kingDamage < 0 ? "キング？" : $"キング{kingDamage}";
-            string quality = DropRules.GetQualityTier(key.archetype) >= 3 ? "高" : "低";
+            int qualityTier = bootstrapper.GetEnemyDropQualityTier(key.archetype); // スキルの加算を含む
+            string quality = qualityTier >= 3 ? "高" : qualityTier == 2 ? "中" : "低";
 
             lines.Add($"<nobr>{EnemyName(plan, key.archetype)}×{counts[key]}: HP{key.hp} / {kingText}・駒{key.attack}ダメージ / {GetEnemyBehaviorName(key.archetype)} / ドロップ品質 {quality}</nobr>");
         }

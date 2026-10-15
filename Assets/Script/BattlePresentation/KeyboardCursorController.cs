@@ -55,6 +55,14 @@ public class KeyboardCursorController : MonoBehaviour
             return;
         }
 
+        // 設定画面を開いている間は、盤面の操作を行わない
+        if (BattleSettingsPanelUI.IsOpen)
+        {
+            SetActive(false);
+            ClearOwnPreview();
+            return;
+        }
+
         var turnController = bootstrapper.TurnController;
         bool placement = bootstrapper.IsPlacementPhase;
         bool playerTurn = !placement && turnController != null && turnController.CurrentPhase == BattlePhase.PlayerTurn;
@@ -81,12 +89,15 @@ public class KeyboardCursorController : MonoBehaviour
 
         HandleMouseInput();
 
-        Vector2Int screenDirection = ReadMoveInput(keyboard);
-        bool confirm = keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame;
-        bool cancel = keyboard.escapeKey.wasPressedThisFrame || keyboard.backspaceKey.wasPressedThisFrame;
-        bool tab = keyboard.tabKey.wasPressedThisFrame;
-        bool shift = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
-        bool space = keyboard.spaceKey.wasPressedThisFrame;
+        // キー判定は全てKeyBindings経由（キー設定画面で変更できる）
+        Vector2Int screenDirection = ReadMoveInput();
+        bool confirm = KeyBindings.WasPressed(GameAction.Confirm);
+        bool cancel = KeyBindings.WasPressed(GameAction.Cancel);
+        bool nextPiece = KeyBindings.WasPressed(GameAction.NextPiece);
+        bool prevPiece = KeyBindings.WasPressed(GameAction.PrevPiece);
+        bool tab = nextPiece || prevPiece;
+        bool backward = prevPiece && !nextPiece; // 前の駒（既定ではShift+Tab）は逆順に巡回する
+        bool space = KeyBindings.WasPressed(GameAction.EndTurn);
 
         bool anyCursorInput = screenDirection != Vector2Int.zero || confirm || cancel || tab;
         bool wasActive = IsActive;
@@ -106,12 +117,12 @@ public class KeyboardCursorController : MonoBehaviour
             bool hasSelection = placementInput != null && placementInput.SelectedType.HasValue;
             bool tabForPlacement = tab && (wasActive || !hasSelection);
 
-            HandlePlacementInput(confirm && wasActive, cancel, tabForPlacement, shift, space);
+            HandlePlacementInput(confirm && wasActive, cancel, tabForPlacement, backward, space);
         }
         else
         {
             // バトル中：非表示からの最初のTabは、カーソルを表示するだけ（巡回しない）
-            HandleBattleInput(confirm && wasActive, cancel, tab && wasActive, shift, space);
+            HandleBattleInput(confirm && wasActive, cancel, tab && wasActive, backward, space);
         }
 
         UpdateCursorVisual();
@@ -127,7 +138,7 @@ public class KeyboardCursorController : MonoBehaviour
     // バトル中（プレイヤーターン）
     // ---------------------------------------------------------------
 
-    private void HandleBattleInput(bool confirm, bool cancel, bool tab, bool shift, bool space)
+    private void HandleBattleInput(bool confirm, bool cancel, bool tab, bool backward, bool space)
     {
         if (battleInput == null) return;
 
@@ -137,9 +148,9 @@ public class KeyboardCursorController : MonoBehaviour
         if (tab)
         {
             if (battleInput.HasSelection || battleInput.IsPursuing)
-                CycleCell(battleInput.GetTargetCells(), shift);
+                CycleCell(battleInput.GetTargetCells(), backward);
             else
-                CycleCell(GetActionablePieceCells(), shift);
+                CycleCell(GetActionablePieceCells(), backward);
         }
 
         if (space) bootstrapper.AdvancePhase(); // ターン終了
@@ -163,12 +174,12 @@ public class KeyboardCursorController : MonoBehaviour
     // 配置フェーズ
     // ---------------------------------------------------------------
 
-    private void HandlePlacementInput(bool confirm, bool cancel, bool tab, bool shift, bool space)
+    private void HandlePlacementInput(bool confirm, bool cancel, bool tab, bool backward, bool space)
     {
         var placementInput = bootstrapper.PlacementInput;
         if (placementInput == null) return;
 
-        if (tab) CycleSelectedPiece(placementInput, shift);
+        if (tab) CycleSelectedPiece(placementInput, backward);
 
         if (confirm)
         {
@@ -306,13 +317,13 @@ public class KeyboardCursorController : MonoBehaviour
     }
 
     // 最初の入力：長押しは0.25秒後から0.08秒ごとに繰り返す。戻り値は「画面上の方向」。
-    private Vector2Int ReadMoveInput(Keyboard keyboard)
+    private Vector2Int ReadMoveInput()
     {
         Vector2Int pressed = Vector2Int.zero;
-        if (keyboard.upArrowKey.wasPressedThisFrame || keyboard.wKey.wasPressedThisFrame) pressed = Vector2Int.up;
-        if (keyboard.downArrowKey.wasPressedThisFrame || keyboard.sKey.wasPressedThisFrame) pressed = Vector2Int.down;
-        if (keyboard.leftArrowKey.wasPressedThisFrame || keyboard.aKey.wasPressedThisFrame) pressed = Vector2Int.left;
-        if (keyboard.rightArrowKey.wasPressedThisFrame || keyboard.dKey.wasPressedThisFrame) pressed = Vector2Int.right;
+        if (KeyBindings.WasPressed(GameAction.MoveUp)) pressed = Vector2Int.up;
+        if (KeyBindings.WasPressed(GameAction.MoveDown)) pressed = Vector2Int.down;
+        if (KeyBindings.WasPressed(GameAction.MoveLeft)) pressed = Vector2Int.left;
+        if (KeyBindings.WasPressed(GameAction.MoveRight)) pressed = Vector2Int.right;
 
         if (pressed != Vector2Int.zero)
         {
@@ -323,7 +334,7 @@ public class KeyboardCursorController : MonoBehaviour
 
         if (heldDirection != Vector2Int.zero)
         {
-            if (!IsDirectionHeld(keyboard, heldDirection))
+            if (!IsDirectionHeld(heldDirection))
             {
                 heldDirection = Vector2Int.zero;
             }
@@ -337,12 +348,12 @@ public class KeyboardCursorController : MonoBehaviour
         return Vector2Int.zero;
     }
 
-    private static bool IsDirectionHeld(Keyboard keyboard, Vector2Int direction)
+    private static bool IsDirectionHeld(Vector2Int direction)
     {
-        if (direction == Vector2Int.up) return keyboard.upArrowKey.isPressed || keyboard.wKey.isPressed;
-        if (direction == Vector2Int.down) return keyboard.downArrowKey.isPressed || keyboard.sKey.isPressed;
-        if (direction == Vector2Int.left) return keyboard.leftArrowKey.isPressed || keyboard.aKey.isPressed;
-        return keyboard.rightArrowKey.isPressed || keyboard.dKey.isPressed;
+        if (direction == Vector2Int.up) return KeyBindings.IsPressed(GameAction.MoveUp);
+        if (direction == Vector2Int.down) return KeyBindings.IsPressed(GameAction.MoveDown);
+        if (direction == Vector2Int.left) return KeyBindings.IsPressed(GameAction.MoveLeft);
+        return KeyBindings.IsPressed(GameAction.MoveRight);
     }
 
     private void MoveCursor(Vector2Int screenDirection)

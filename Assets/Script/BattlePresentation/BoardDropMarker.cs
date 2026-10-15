@@ -14,15 +14,17 @@ public class BoardDropMarker : MonoBehaviour
     public EquipmentInstance BoostedItem { get; private set; }
 
     private Transform visual;
+    private bool showBoostDisc; // 鑑定Lv1以上のときだけ円盤を表示する
     private GameObject disc; // 拾得後のレアリティの色の円盤（球は上下に浮遊するが、円盤はマスの上に固定）
     private Vector3 basePosition;
     private float bobPhase;
 
-    public void Initialize(int dropId, EquipmentInstance item, EquipmentInstance boostedItem, Vector3 worldPosition)
+    public void Initialize(int dropId, EquipmentInstance item, EquipmentInstance boostedItem, bool showBoostDisc, Vector3 worldPosition)
     {
         DropId = dropId;
         Item = item;
         BoostedItem = boostedItem;
+        this.showBoostDisc = showBoostDisc;
         basePosition = worldPosition;
         transform.position = worldPosition;
         bobPhase = dropId * 0.7f; // 複数のドロップが同じ位相で揺れないようにずらす
@@ -47,7 +49,7 @@ public class BoardDropMarker : MonoBehaviour
     // 拾得ボーナス（+1版）がある場合だけ、球の下に、拾得後のレアリティの色の薄い円盤を置く
     private void CreateBoostDisc(Vector3 spherePosition)
     {
-        if (BoostedItem == null) return;
+        if (BoostedItem == null || !showBoostDisc) return;
 
         disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         disc.name = "DropBoostDisc";

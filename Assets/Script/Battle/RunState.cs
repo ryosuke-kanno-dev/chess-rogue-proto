@@ -31,6 +31,10 @@ namespace Chebyss.Battle
         public static int PawnXp { get; private set; }
         public static int PawnRank { get; private set; } = 1;
 
+        // スキルポイントと取得済みスキル
+        public static int SkillPoints { get; private set; }
+        public static IReadOnlyCollection<string> OwnedSkills => ownedSkills;
+
         public static void SetPawnGrowth(int xp, int rank)
         {
             PawnXp = Mathf.Max(0, xp);
@@ -55,6 +59,9 @@ namespace Chebyss.Battle
 
         // 倒れた駒（墓地）。墓地の駒は次のバトルに出られず、装備もできない。
         private static readonly HashSet<PieceType> deadPieces = new();
+
+        // キングのスキル（ラン全体で持ち越す）
+        private static readonly HashSet<string> ownedSkills = new();
 
         // 前回のバトルの駒種ごとの配置マス（次のバトルの自動配置に使う）
         private static readonly Dictionary<PieceType, Vector2Int> lastPlacement = new();
@@ -91,27 +98,9 @@ namespace Chebyss.Battle
 
             PawnXp = 0;
             PawnRank = 1;
-        }
 
-        // 全駒種・全スロットの装備のうち、SenseLevelのボーナスの値を合計して整数（四捨五入）で返す。
-        // 上限（MaxSenseLevel）の丸めは呼び出し側で行う。
-        public static int GetTotalSenseValue()
-        {
-            float total = 0f;
-            foreach (var array in slots.Values)
-            {
-                foreach (var item in array)
-                {
-                    if (item == null || item.bonuses == null) continue;
-
-                    foreach (var bonus in item.bonuses)
-                    {
-                        if (bonus.statType == EquipmentStatType.SenseLevel)
-                            total += bonus.value;
-                    }
-                }
-            }
-            return Mathf.RoundToInt(total);
+            SkillPoints = 0;
+            ownedSkills.Clear();
         }
 
         // 前回の配置を置き換える
@@ -128,6 +117,66 @@ namespace Chebyss.Battle
         {
             return lastPlacement.TryGetValue(type, out pos);
         }
+
+        // ---- キングのスキル ----
+
+        public static void AddSkillPoints(int amount)
+        {
+            SkillPoints = Mathf.Max(0, SkillPoints + amount);
+        }
+
+        public static bool HasSkill(string id) => id != null && ownedSkills.Contains(id);
+
+        // 未取得で、前提が全て取得済みで、スキルポイントが足りる
+        public static bool CanAcquireSkill(string id)
+        {
+            if (!KingSkillCatalog.TryGet(id, out var skill)) return false;
+            if (ownedSkills.Contains(id)) return false;
+            if (SkillPoints < skill.cost) return false;
+
+            foreach (var prerequisite in skill.prerequisites)
+            {
+                if (!ownedSkills.Contains(prerequisite)) return false;
+            }
+            return true;
+        }
+
+        public static bool TryAcquireSkill(string id)
+        {
+            if (!CanAcquireSkill(id)) return false;
+
+            KingSkillCatalog.TryGet(id, out var skill);
+            SkillPoints -= skill.cost;
+            ownedSkills.Add(id);
+            return true;
+        }
+
+        // ---- スキルから導出される値 ----
+
+        public static int GetSenseSkillLevel()
+        {
+            if (HasSkill("sense_3")) return 3;
+            if (HasSkill("sense_2")) return 2;
+            if (HasSkill("sense_1")) return 1;
+            return 0;
+        }
+
+        public static int GetAppraisalSkillLevel()
+        {
+            if (HasSkill("appraise_2")) return 2;
+            if (HasSkill("appraise_1")) return 1;
+            return 0;
+        }
+
+        public static int GetSkillAttackBonus() => (HasSkill("atk_1") ? 1 : 0) + (HasSkill("atk_2") ? 1 : 0);
+
+        public static int GetSkillPieceHpBonus() => ((HasSkill("hp_1") ? 1 : 0) + (HasSkill("hp_2") ? 1 : 0)) * 3;
+
+        public static int GetSkillKingHpBonus() => ((HasSkill("kinghp_1") ? 1 : 0) + (HasSkill("kinghp_2") ? 1 : 0)) * 5;
+
+        public static bool HasPickupDoubleBoostSkill() => HasSkill("bonus_1");
+
+        public static int GetSkillDropQualityBonus() => HasSkill("quality_1") ? 1 : 0;
 
         public static bool IsPieceDead(PieceType type) => deadPieces.Contains(type);
 

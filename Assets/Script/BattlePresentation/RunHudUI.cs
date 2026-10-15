@@ -21,6 +21,9 @@ public class RunHudUI : MonoBehaviour
         this.font = font;
         BuildUI();
         Refresh();
+
+        // キー設定が変わったら、配置フェーズの案内を作り直す
+        KeyBindings.Changed += OnKeyBindingsChanged;
     }
 
     void Update()
@@ -51,6 +54,16 @@ public class RunHudUI : MonoBehaviour
         }
     }
 
+    private void OnKeyBindingsChanged()
+    {
+        hintInitialized = false;
+    }
+
+    void OnDestroy()
+    {
+        KeyBindings.Changed -= OnKeyBindingsChanged;
+    }
+
     private PieceType? GetSelectedType()
     {
         var input = bootstrapper.PlacementInput;
@@ -60,9 +73,9 @@ public class RunHudUI : MonoBehaviour
     private static string BuildHintText(PieceType? selected)
     {
         if (!selected.HasValue)
-            return "配置フェーズ：駒をドラッグ、または駒をクリックしてからマスをクリックして配置　／　準備ができたら「配置完了」を押す　／ キーボード：Tab で駒を選ぶ";
+            return $"配置フェーズ：駒をドラッグ、または駒をクリックしてからマスをクリックして配置　／　準備ができたら「配置完了」を押す　／ キーボード：{KeyBindings.GetLabel(GameAction.NextPiece)} で駒を選ぶ";
 
-        return $"{GetPieceName(selected.Value)}を選択中：置きたいマスをクリック、または矢印キーでカーソルを動かして Enter（右クリック／Esc で選択解除）";
+        return $"{GetPieceName(selected.Value)}を選択中：置きたいマスをクリック、または {KeyBindings.GetMoveLabel()} でカーソルを動かして {KeyBindings.GetLabel(GameAction.Confirm)}（右クリック／{KeyBindings.GetLabel(GameAction.Cancel)} で選択解除）";
     }
 
     private static string GetPieceName(PieceType type)

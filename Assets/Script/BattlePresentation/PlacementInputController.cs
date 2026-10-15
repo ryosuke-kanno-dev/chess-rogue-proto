@@ -37,6 +37,13 @@ public class PlacementInputController : MonoBehaviour
 
     void Update()
     {
+        // 設定画面を開いている間は、配置の操作を行わない
+        if (BattleSettingsPanelUI.IsOpen)
+        {
+            ClearOwnPreview();
+            return;
+        }
+
         if (bootstrapper == null || !bootstrapper.IsPlacementPhase)
         {
             // バトル開始後は選択を残さない

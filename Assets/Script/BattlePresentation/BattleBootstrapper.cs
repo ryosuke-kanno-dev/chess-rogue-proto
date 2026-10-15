@@ -75,6 +75,13 @@ public class BattleBootstrapper : MonoBehaviour
     [Range(-1, 3)]
     [SerializeField] private int senseLevelOverride = -1;
 
+    [Header("スキルツリー（確認用）")]
+    [Range(-1, 2)]
+    [Tooltip("-1 = スキルから算出 / 0〜2 = 確認用にそのレベルへ固定")]
+    [SerializeField] private int appraisalLevelOverride = -1;
+    [Tooltip("ラン開始時（1階）に、スキルポイントを追加する確認用の値")]
+    [SerializeField] private int debugBonusSkillPoints = 0;
+
     [Header("標準配置（最初のバトルと、記憶のない駒の配置）")]
     [SerializeField] private Vector2Int pawnStandardPosition = new Vector2Int(4, 2);
     [SerializeField] private Vector2Int knightStandardPosition = new Vector2Int(2, 1);
@@ -130,6 +137,10 @@ public class BattleBootstrapper : MonoBehaviour
     public PlayerInventory Inventory { get; private set; }
     public LoadoutPanelUI Loadout { get; private set; }
     public RunEndPanelUI RunEnd { get; private set; }
+    public SkillTreePanelUI SkillTree { get; private set; }
+
+    // 直近の勝利で得たスキルポイント（装備画面が表示する）
+    public int LastSkillPointsGained { get; private set; }
 
     // 配置フェーズ中はtrue、StartBattlePhaseの後はfalse
     public bool IsPlacementPhase { get; private set; } = true;
@@ -166,6 +177,13 @@ public class BattleBootstrapper : MonoBehaviour
     {
         Board = new BoardState(boardWidth, boardHeight, kingStartPosition);
 
+        // 確認用：ラン開始時（1階・スキル未取得）だけ、スキルポイントを追加する
+        if (RunState.CurrentFloor == 1 && RunState.FloorsCleared == 0 &&
+            RunState.SkillPoints == 0 && RunState.OwnedSkills.Count == 0 && debugBonusSkillPoints > 0)
+        {
+            RunState.AddSkillPoints(debugBonusSkillPoints);
+        }
+
         boardGenerator.EnsureGenerated();
 
         WarnIfPatternMissing(knightPattern, "Knight Pattern");
@@ -176,7 +194,7 @@ public class BattleBootstrapper : MonoBehaviour
         WarnIfOnHitEffectsEmpty(bishopPattern, "Bishop Pattern");
 
         VisualSync = gameObject.AddComponent<BattleVisualSync>();
-        VisualSync.Initialize(boardGenerator, statusIndicatorSettings);
+        VisualSync.Initialize(boardGenerator, statusIndicatorSettings, GetAppraisalLevel);
 
         Inventory = RunState.Inventory; // 階をまたいで維持される所持品
 
@@ -208,11 +226,19 @@ public class BattleBootstrapper : MonoBehaviour
         var controls = gameObject.AddComponent<BattleControlsUI>();
         controls.Initialize(this, uiFontAsset);
 
+        var settings = gameObject.AddComponent<BattleSettingsPanelUI>();
+        settings.Initialize(this, uiFontAsset);
+
+        SkillTree = gameObject.AddComponent<SkillTreePanelUI>();
+        SkillTree.Initialize(this, uiFontAsset);
+
+        // スキル「王の体力」の加算を含める
+        int kingMaxHp = kingHp + RunState.GetSkillKingHpBonus();
         var king = PieceSnapshotFactory.Create(
             PieceType.King, isPlayerSide: true, position: kingStartPosition,
-            currentHp: kingHp, maxHp: kingHp, attack: 0, statModifiers: null, statusEffects: null);
+            currentHp: kingMaxHp, maxHp: kingMaxHp, attack: 0, statModifiers: null, statusEffects: null);
         Board.PlacePiece(king);
-        SpawnFixedStatVisual(kingPrefab, kingStartPosition, king.instanceId, kingHp);
+        SpawnFixedStatVisual(kingPrefab, kingStartPosition, king.instanceId, kingMaxHp);
 
         currentEncounter = RunState.NextEncounter ?? BuildEncounter(RunState.CurrentFloor);
         RunState.NextEncounter = null;
@@ -278,9 +304,11 @@ public class BattleBootstrapper : MonoBehaviour
 
     private void ApplyPlayerBaseStats(PieceData data, int hp, int attack)
     {
-        data.maxHp = hp;
-        data.currentHp = hp;
-        data.attack = attack;
+        // スキル（攻撃強化・体力強化）の加算を含める。装備・★2の倍率は、この後に適用される。
+        int skillHp = hp + RunState.GetSkillPieceHpBonus();
+        data.maxHp = skillHp;
+        data.currentHp = skillHp;
+        data.attack = attack + RunState.GetSkillAttackBonus();
     }
 
     // RunStateの装備のうち「突進距離+」（DashRangeBonus）の合計を、スナップショットのstatModifiersへ設定する。
@@ -355,10 +383,10 @@ public class BattleBootstrapper : MonoBehaviour
     {
         switch (type)
         {
-            case PieceType.Knight: return knightHp;
-            case PieceType.Rook:   return rookHp;
-            case PieceType.Bishop: return bishopHp;
-            case PieceType.Pawn:   return pawnHp;
+            case PieceType.Knight: return knightHp + RunState.GetSkillPieceHpBonus();
+            case PieceType.Rook:   return rookHp + RunState.GetSkillPieceHpBonus();
+            case PieceType.Bishop: return bishopHp + RunState.GetSkillPieceHpBonus();
+            case PieceType.Pawn:   return pawnHp + RunState.GetSkillPieceHpBonus();
             default:               return 0;
         }
     }
@@ -367,10 +395,10 @@ public class BattleBootstrapper : MonoBehaviour
     {
         switch (type)
         {
-            case PieceType.Knight: return knightAttack;
-            case PieceType.Rook:   return rookAttack;
-            case PieceType.Bishop: return bishopAttack;
-            case PieceType.Pawn:   return pawnAttack;
+            case PieceType.Knight: return knightAttack + RunState.GetSkillAttackBonus();
+            case PieceType.Rook:   return rookAttack + RunState.GetSkillAttackBonus();
+            case PieceType.Bishop: return bishopAttack + RunState.GetSkillAttackBonus();
+            case PieceType.Pawn:   return pawnAttack + RunState.GetSkillAttackBonus();
             default:               return 0;
         }
     }
@@ -399,11 +427,24 @@ public class BattleBootstrapper : MonoBehaviour
         return knightPattern != null ? knightPattern.distanceBonusRate : 0f;
     }
 
-    // senseLevelOverrideが0以上ならその値に固定（確認用）。そうでなければ装備の「感知」の合計から算出する。
+    // senseLevelOverrideが0以上ならその値に固定（確認用）。そうでなければスキル「感知」のレベル。
     public int GetSenseLevel()
     {
         if (senseLevelOverride >= 0) return senseLevelOverride;
-        return Mathf.Clamp(RunState.GetTotalSenseValue(), 0, RunState.MaxSenseLevel);
+        return Mathf.Clamp(RunState.GetSenseSkillLevel(), 0, RunState.MaxSenseLevel);
+    }
+
+    // appraisalLevelOverrideが0以上ならその値に固定（確認用）。そうでなければスキル「鑑定」のレベル。
+    public int GetAppraisalLevel()
+    {
+        if (appraisalLevelOverride >= 0) return appraisalLevelOverride;
+        return RunState.GetAppraisalSkillLevel();
+    }
+
+    // スキル（良品の予感）の加算を含めた、敵種ごとのドロップ品質Tier
+    public int GetEnemyDropQualityTier(EnemyArchetype archetype)
+    {
+        return DropRules.GetBoostedQualityTier(archetype, RunState.GetSkillDropQualityBonus());
     }
 
     public bool IsSenseLevelOverridden => senseLevelOverride >= 0;
@@ -452,6 +493,16 @@ public class BattleBootstrapper : MonoBehaviour
         int enemyCount = currentEncounter != null ? currentEncounter.enemies.Count : 0;
         int itemCount = TurnController != null ? TurnController.LootLedger.Collected.Count : 0;
         RunState.RecordVictory(enemyCount, itemCount, casualties.Count);
+
+        // スキルポイント：ボス階の勝利で2、それ以外で1。最終階（ランクリア）では加えない。
+        LastSkillPointsGained = 0;
+        if (!IsFinalFloor)
+        {
+            bool bossFloor = EnemyNames.IsBossFloor(RunState.CurrentFloor, encounterSettings.bossFloorInterval, encounterSettings.finalFloor);
+            int gained = bossFloor ? 2 : 1;
+            RunState.AddSkillPoints(gained);
+            LastSkillPointsGained = gained;
+        }
     }
 
     // 次の階へ進む準備（階数を進め、次の敵計画を作る）。倒れた駒の確定はCommitVictoryで行う。
@@ -728,8 +779,11 @@ public class BattleBootstrapper : MonoBehaviour
         TurnController = new BattleTurnController(
             Board, enemyTurnProcessor, playerRules, playerPatterns, pawnGrowthRules,
             Inventory,
-            a => BattleEquipmentGenerator.GenerateRandomEquipment(DropRules.GetQualityTier(a)),
+            a => BattleEquipmentGenerator.GenerateRandomEquipment(DropRules.GetBoostedQualityTier(a, RunState.GetSkillDropQualityBonus())),
             BattleEquipmentGenerator.CreateUpgraded);
+
+        // スキル「拾得ボーナス強化」
+        TurnController.PickupDoubleBoostChance = RunState.HasPickupDoubleBoostSkill() ? 0.25f : 0f;
 
         // ポーンの経験値を持ち越す（このバトルの経験値は、持ち越した値に積み上がる）
         if (TryGetPawnInstanceId(out var pawnId))

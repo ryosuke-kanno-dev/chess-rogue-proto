@@ -35,6 +35,9 @@ public class BattleInputController : MonoBehaviour
         var turnController = bootstrapper.TurnController;
         if (turnController == null) return;
 
+        // 設定画面を開いている間は、盤面の操作（右クリックを含む）を行わない
+        if (BattleSettingsPanelUI.IsOpen) return;
+
         var board = bootstrapper.Board;
         if (board.CurrentTurn != lastSeenTurn)
         {
@@ -99,6 +102,8 @@ public class BattleInputController : MonoBehaviour
     // キーボードのカーソルで「決定」したとき：マウスでそのマスをクリックしたときと同じ処理を行う
     public void RequestActivateCell(Vector2Int cell)
     {
+        if (BattleSettingsPanelUI.IsOpen) return;
+
         var turnController = bootstrapper.TurnController;
         if (turnController == null || turnController.CurrentPhase != BattlePhase.PlayerTurn) return;
 
@@ -143,6 +148,8 @@ public class BattleInputController : MonoBehaviour
     // 追撃移動の選択中は辞退、駒を選択中なら選択解除。どちらでもなければ何もしない。
     public void RequestCancel()
     {
+        if (BattleSettingsPanelUI.IsOpen) return;
+
         if (pursuingKnightPos.HasValue)
             CancelInteraction();
         else if (selectedPos.HasValue)

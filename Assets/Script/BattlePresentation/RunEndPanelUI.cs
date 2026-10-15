@@ -18,7 +18,7 @@ public class RunEndPanelUI : MonoBehaviour
     private TextMeshProUGUI summaryText;
     private Button newRunButton;
     private int openedFrame = -1;
-    private bool pendingSelect;
+    private TextMeshProUGUI keyHintText;
 
     public void Initialize(BattleBootstrapper bootstrapper, TMP_FontAsset font)
     {
@@ -48,25 +48,44 @@ public class RunEndPanelUI : MonoBehaviour
         // 開いたフレームのキー入力（直前の決定キー・Spaceなど）で即座にリスタートしないよう、
         // ボタンの選択とSpaceの受け付けは次のフレームからにする
         openedFrame = Time.frameCount;
-        pendingSelect = true;
     }
 
     void Update()
     {
         if (canvasObject == null || !canvasObject.activeInHierarchy) return;
+
+        // 設定画面を開いている間は、ショートカットキーも選択の維持も行わない
+        if (BattleSettingsPanelUI.IsOpen) return;
+
         if (Time.frameCount <= openedFrame) return;
 
-        // Open時に NewRunButton を選択状態にする（Enterで押せる）
-        if (pendingSelect)
+        // 選択中のUIが無い（Open直後・設定画面を閉じた後など）ときは、NewRunButtonを選択状態にする（Enterで押せる）
+        var eventSystem = EventSystem.current;
+        if (eventSystem != null)
         {
-            pendingSelect = false;
-            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(newRunButton.gameObject);
+            var current = eventSystem.currentSelectedGameObject;
+            if (current == null || !current.activeInHierarchy)
+                eventSystem.SetSelectedGameObject(newRunButton.gameObject);
         }
 
-        // Spaceでも NewRunButton を押す
-        var keyboard = Keyboard.current;
-        if (keyboard != null && keyboard.spaceKey.wasPressedThisFrame)
+        // 「ターン終了・配置完了・次へ」のキーでも NewRunButton を押す
+        if (KeyBindings.WasPressed(GameAction.EndTurn))
             newRunButton.onClick.Invoke();
+    }
+
+    void OnDestroy()
+    {
+        KeyBindings.Changed -= RefreshKeyHint;
+    }
+
+    private static string BuildKeyHintString()
+    {
+        return $"[Enter] または [{KeyBindings.GetLabel(GameAction.EndTurn)}] 新しいランを始める";
+    }
+
+    private void RefreshKeyHint()
+    {
+        if (keyHintText != null) keyHintText.text = BuildKeyHintString();
     }
 
     private void BuildUI()
@@ -113,8 +132,9 @@ public class RunEndPanelUI : MonoBehaviour
         var buttonLabel = CreateText("Label", buttonRect, "新しいランを始める", 36f, TextAlignmentOptions.Center, Color.white);
         Stretch(buttonLabel.rectTransform, Vector2.zero, Vector2.one);
 
-        var hint = CreateText("RunEndKeyHintText", root, "[Enter] または [Space] 新しいランを始める", 28f, TextAlignmentOptions.Center, new Color(0.75f, 0.78f, 0.88f));
-        Stretch(hint.rectTransform, new Vector2(0.1f, 0.03f), new Vector2(0.9f, 0.08f));
+        keyHintText = CreateText("RunEndKeyHintText", root, BuildKeyHintString(), 28f, TextAlignmentOptions.Center, new Color(0.75f, 0.78f, 0.88f));
+        Stretch(keyHintText.rectTransform, new Vector2(0.1f, 0.03f), new Vector2(0.9f, 0.08f));
+        KeyBindings.Changed += RefreshKeyHint;
 
         button.onClick.AddListener(() =>
         {

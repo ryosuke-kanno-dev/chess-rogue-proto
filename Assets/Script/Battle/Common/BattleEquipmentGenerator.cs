@@ -19,10 +19,6 @@ namespace Chebyss.Battle
         // falseにすると最大HP+を生成しなくなる（RollBonusValue・FormatBonusのHpFlat分岐は残してある）。
         private const bool EnableHpFlat = true;
 
-        // テスト用：trueにするとCommonの候補プールにもSenseLevel（感知）が加わる。
-        // 通常はfalse（感知はRare以上のみ）。
-        private const bool AllowSenseOnCommon = false;
-
         // qualityTier: 1=雑魚敵, 2=中堅敵, 3=強敵（レアリティが上振れしやすくなる）
         public static EquipmentInstance GenerateRandomEquipment(int qualityTier)
         {
@@ -107,29 +103,23 @@ namespace Chebyss.Battle
                 case EquipmentRarity.Rare:
                     slotCount = 1;
                     pool.Add(EquipmentStatType.DistanceBonusRate);
-                    pool.Add(EquipmentStatType.SenseLevel);
                     pool.Add(EquipmentStatType.DashRangeBonus);
                     break;
                 case EquipmentRarity.Epic:
                     slotCount = 2;
                     pool.Add(EquipmentStatType.DistanceBonusRate);
                     pool.Add(EquipmentStatType.BonusActions);
-                    pool.Add(EquipmentStatType.SenseLevel);
                     pool.Add(EquipmentStatType.DashRangeBonus);
                     break;
                 default: // Legendary
                     slotCount = 3;
                     pool.Add(EquipmentStatType.DistanceBonusRate);
                     pool.Add(EquipmentStatType.BonusActions);
-                    pool.Add(EquipmentStatType.SenseLevel);
                     pool.Add(EquipmentStatType.DashRangeBonus);
                     break;
             }
 
-#pragma warning disable CS0162 // EnableHpFlat=false の間は到達しないコード（意図的）
             if (EnableHpFlat) pool.Add(EquipmentStatType.HpFlat);
-            if (AllowSenseOnCommon && rarity == EquipmentRarity.Common) pool.Add(EquipmentStatType.SenseLevel);
-#pragma warning restore CS0162
 
             return pool;
         }

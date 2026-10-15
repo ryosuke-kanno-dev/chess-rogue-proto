@@ -12,10 +12,14 @@ public class BattleVisualSync : MonoBehaviour
     private readonly List<PieceBoardLink> trackedLinks = new();
     private readonly Dictionary<int, BoardDropMarker> dropMarkers = new();
 
-    public void Initialize(BoardGenerator generator, StatusIndicatorSettings settings)
+    // 鑑定レベルを返す関数（ドロップの円盤を、鑑定Lv1以上のときだけ表示するために使う）
+    private System.Func<int> appraisalLevelProvider;
+
+    public void Initialize(BoardGenerator generator, StatusIndicatorSettings settings, System.Func<int> appraisalLevelProvider = null)
     {
         boardGenerator = generator;
         statusSettings = settings;
+        this.appraisalLevelProvider = appraisalLevelProvider;
     }
 
     public void Register(PieceBoardLink link)
@@ -105,7 +109,8 @@ public class BattleVisualSync : MonoBehaviour
 
             var markerObject = new GameObject($"DropMarker_{drop.dropId}");
             var marker = markerObject.AddComponent<BoardDropMarker>();
-            marker.Initialize(drop.dropId, drop.item, drop.boostedItem, tile.transform.position + Vector3.up * 0.45f);
+            bool showBoostDisc = appraisalLevelProvider != null && appraisalLevelProvider() >= 1;
+            marker.Initialize(drop.dropId, drop.item, drop.boostedItem, showBoostDisc, tile.transform.position + Vector3.up * 0.45f);
             dropMarkers[drop.dropId] = marker;
         }
 

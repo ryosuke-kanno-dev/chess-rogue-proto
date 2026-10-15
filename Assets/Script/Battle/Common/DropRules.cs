@@ -7,6 +7,12 @@ namespace Chebyss.Battle
     /// </summary>
     public static class DropRules
     {
+        // スキル（良品の予感）などによるドロップ品質の加算を含めたTier。最大3。
+        public static int GetBoostedQualityTier(EnemyArchetype archetype, int bonus)
+        {
+            return System.Math.Min(3, GetQualityTier(archetype) + bonus);
+        }
+
         public static int GetQualityTier(EnemyArchetype archetype)
         {
             switch (archetype)

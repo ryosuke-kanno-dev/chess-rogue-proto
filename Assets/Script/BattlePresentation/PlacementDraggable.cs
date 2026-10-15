@@ -66,6 +66,19 @@ public class PlacementDraggable : MonoBehaviour
 
     void Update()
     {
+        // 設定画面を開いている間は、ドラッグ・クリック・プレビューを行わない（ドラッグ中なら取り消して元へ戻す）
+        if (BattleSettingsPanelUI.IsOpen)
+        {
+            if (isDragging)
+            {
+                isDragging = false;
+                if (currentDragger == this) currentDragger = null;
+                RevertToLastValid();
+            }
+            ClearPreviewIfMine();
+            return;
+        }
+
         if (Mouse.current == null) return;
         if (mainCamera == null) mainCamera = Camera.main;
         if (mainCamera == null) return;
